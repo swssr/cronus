@@ -11,7 +11,16 @@ type Commit = {
   content: string;
 };
 
-const defaultFile = "README.md";
+async function getDirectoryFiles(dirPath: string): Promise<string[]> {
+  try {
+    const files = await invoke<string[]>("list_directory_files", { dirPath });
+    console.log({files})
+    return files;
+  } catch (error) {
+    console.error("Error listing directory files", error);
+    return [];
+  }
+}
 
 async function getGitHistoryWithContent(filePath: string): Promise<Commit[]> {
   try {
@@ -50,7 +59,8 @@ async function getGitHistoryWithContent(filePath: string): Promise<Commit[]> {
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
-  const [filePath, setFilePath] = useState<string | null>(null);
+  const [availableFiles, setAvailableFiles] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [commits, setCommits] = useState<Commit[]>([]);
 
   async function pickDirectory() {
@@ -62,11 +72,20 @@ function App() {
 
     if (typeof selected === "string") {
       setDirectory(selected);
-      const targetFile = `${selected}/${defaultFile}`;
-      setFilePath(targetFile);
-      const history = await getGitHistoryWithContent(targetFile);
-      setCommits(history);
+      const files = await getDirectoryFiles(selected);
+      setAvailableFiles(files);
+      setSelectedFile(null);
+      setCommits([]);
     }
+  }
+
+  async function selectFile(fileName: string) {
+    if (!directory) return;
+    
+    const fullPath = `${directory}/${fileName}`;
+    setSelectedFile(fullPath);
+    const history = await getGitHistoryWithContent(fullPath);
+    setCommits(history);
   }
 
   return (
@@ -76,15 +95,38 @@ function App() {
       <button onClick={pickDirectory}>Pick Git Repo Directory</button>
 
       {directory && (
-        <p>
-          Picked directory: <code>{directory}</code>
-        </p>
+        <div>
+          <p>
+            Directory: <code>{directory}</code>
+          </p>
+          
+          {availableFiles.length > 0 && (
+            <div className="file-list">
+              <h3>Select a file ({availableFiles.length} files found):</h3>
+              <div className="file-grid">
+                {availableFiles.map((file) => (
+                  <button
+                    key={file}
+                    className={`file-button ${selectedFile?.endsWith(file) ? 'selected' : ''}`}
+                    onClick={() => selectFile(file)}
+                    title={file}
+                  >
+                    <div className="file-name">{file.split('/').pop()}</div>
+                    {file.includes('/') && (
+                      <div className="file-path">{file.substring(0, file.lastIndexOf('/'))}/</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      {filePath && (
+      {selectedFile && (
         <>
           <p>
-            Viewing history for: <code>{filePath}</code>
+            Viewing history for: <code>{selectedFile}</code>
           </p>
 
           <div className="timeline">

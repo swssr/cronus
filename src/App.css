@@ -81,3 +81,151 @@ button {
   overflow-x: auto;
   max-height: 65vh;
 }
+
+.file-list {
+  margin: 2rem 0;
+}
+
+.file-list h3 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.file-button {
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.file-name {
+  font-weight: 600;
+  color: #212529;
+}
+
+.file-path {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-weight: normal;
+}
+
+.file-button:hover {
+  background: #e9ecef;
+  border-color: #6c757d;
+  transform: translateY(-1px);
+}
+
+.file-button.selected {
+  background: #007bff;
+  color: white;
+  border-color: #0056b3;
+}
+
+.file-button.selected .file-name {
+  color: white;
+}
+
+.file-button.selected .file-path {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.timeline {
+  position: relative;
+  padding-left: 2rem;
+  margin-left: 1rem;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, #007bff, #6f42c1);
+  border-radius: 2px;
+}
+
+.snapshot-card {
+  position: relative;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.snapshot-card:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.snapshot-card::before {
+  content: '';
+  position: absolute;
+  left: -2.25rem;
+  top: 1.5rem;
+  width: 1rem;
+  height: 1rem;
+  background: white;
+  border: 3px solid #007bff;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.snapshot-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.snapshot-meta code {
+  background: #f8f9fa;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
+  color: #495057;
+}
+
+.snapshot-content {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.commit-message {
+  font-style: italic;
+  color: #495057;
+  border-left: 3px solid #007bff;
+  padding-left: 1rem;
+  margin-top: 1rem;
+}
