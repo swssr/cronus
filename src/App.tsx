@@ -1,36 +1,87 @@
 import { useState } from "react";
-import "./App.css";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+
+type Commit = {
+  hash: string;
+  author: string;
+  date: string;
+  message: string;
+};
+
+async function getGitHistory(filePath: string) {
+  try {
+    const result = await invoke<string>("get_git_history", { filePath });
+    const output = result
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        const [hash, author, date, message] = line.split("|");
+        return { hash, author, date, message };
+      });
+    return output;
+  } catch (error) {
+    console.error("Error loading history", error);
+    return [];
+  }
+}
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [directory, setDirectory] = useState<string | null>(null);
+  const [commits, setCommits] = useState<Commit[]>([]);
+  const [filePath, setFilePath] = useState<string | null>(null);
 
-  async function greet() {
-    setGreetMsg(await invoke("hello", { value: name }));
+  const defaultFile = "README.md";
+
+  async function pickDirectory() {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "Select a Git Repository Directory",
+    });
+
+    if (typeof selected === "string") {
+      setDirectory(selected);
+
+      const targetFile = `${selected}/${defaultFile}`;
+      setFilePath(targetFile);
+
+      const history = await getGitHistory(targetFile);
+      setCommits(history);
+    }
   }
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+      <h1>Git Time Machine</h1>
 
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+      <button onClick={pickDirectory}>Pick Git Repo Directory</button>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+      {directory && (
+        <p>
+          Picked directory: <code>{directory}</code>
+        </p>
+      )}
+
+      {filePath && (
+        <>
+          <p>
+            Viewing history for: <code>{filePath}</code>
+          </p>
+
+          <div className="card-stack">
+            {commits.map((commit) => (
+              <div key={commit.hash} className="commit-card">
+                <div className="commit-hash">{commit.hash}</div>
+                <div className="commit-meta">
+                  <strong>{commit.author}</strong> — {commit.date}
+                </div>
+                <div className="commit-message">{commit.message}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </main>
   );
 }
