@@ -1,3 +1,11 @@
+*,
+*:before,
+*:after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 .container {
   padding: 2rem;
   font-family: sans-serif;
@@ -43,4 +51,33 @@ button {
 
 .commit-message {
   font-size: 1.1rem;
+}
+
+.snapshot-card {
+  background: #1e1e1e;
+  color: #dcdcdc;
+  font-family: "Fira Code", monospace;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  padding: 1.5rem;
+  margin: 2rem auto;
+  max-width: 90vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.snapshot-meta {
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+.snapshot-content {
+  background: #2e2e2e;
+  padding: 1rem;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 65vh;
 }

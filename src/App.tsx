@@ -1,25 +1,47 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import "./App.css";
 
 type Commit = {
   hash: string;
   author: string;
   date: string;
   message: string;
+  content: string;
 };
 
-async function getGitHistory(filePath: string) {
+const defaultFile = "README.md";
+
+async function getGitHistoryWithContent(filePath: string): Promise<Commit[]> {
   try {
-    const result = await invoke<string>("get_git_history", { filePath });
-    const output = result
+    const raw = await invoke<string>("get_git_history", { filePath });
+    const history = raw
       .split("\n")
       .filter(Boolean)
       .map((line) => {
         const [hash, author, date, message] = line.split("|");
         return { hash, author, date, message };
       });
-    return output;
+
+    const withContent: Commit[] = [];
+    for (const entry of history) {
+      try {
+        const content = await invoke<string>("get_git_file_at_commit", {
+          filePath,
+          commitHash: entry.hash,
+        });
+        withContent.push({ ...entry, content });
+      } catch (e) {
+        console.error(`Could not fetch content for ${entry.hash}`, e);
+        withContent.push({
+          ...entry,
+          content: "// Error loading file content",
+        });
+      }
+    }
+
+    return withContent;
   } catch (error) {
     console.error("Error loading history", error);
     return [];
@@ -28,10 +50,8 @@ async function getGitHistory(filePath: string) {
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
-  const [commits, setCommits] = useState<Commit[]>([]);
   const [filePath, setFilePath] = useState<string | null>(null);
-
-  const defaultFile = "README.md";
+  const [commits, setCommits] = useState<Commit[]>([]);
 
   async function pickDirectory() {
     const selected = await open({
@@ -42,11 +62,9 @@ function App() {
 
     if (typeof selected === "string") {
       setDirectory(selected);
-
       const targetFile = `${selected}/${defaultFile}`;
       setFilePath(targetFile);
-
-      const history = await getGitHistory(targetFile);
+      const history = await getGitHistoryWithContent(targetFile);
       setCommits(history);
     }
   }
@@ -69,13 +87,14 @@ function App() {
             Viewing history for: <code>{filePath}</code>
           </p>
 
-          <div className="card-stack">
+          <div className="timeline">
             {commits.map((commit) => (
-              <div key={commit.hash} className="commit-card">
-                <div className="commit-hash">{commit.hash}</div>
-                <div className="commit-meta">
-                  <strong>{commit.author}</strong> — {commit.date}
+              <div key={commit.hash} className="snapshot-card">
+                <div className="snapshot-meta">
+                  <code>{commit.hash.slice(0, 8)}</code> • {commit.author} •{" "}
+                  {commit.date}
                 </div>
+                <pre className="snapshot-content">{commit.content}</pre>
                 <div className="commit-message">{commit.message}</div>
               </div>
             ))}

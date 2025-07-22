@@ -40,6 +40,20 @@ fn get_launch_path(state: tauri::State<AppState>) -> Option<String> {
     state.launch_path.clone()
 }
 
+#[command]
+fn get_git_file_at_commit(file_path: String, commit_hash: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(&["show", &format!("{}:{}", commit_hash, file_path)])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let args: Vec<String> = std::env::args().collect();
@@ -52,7 +66,8 @@ pub fn run() {
             greet,
             hello,
             get_git_history,
-            get_launch_path
+            get_launch_path,
+            get_git_file_at_commit
         ])
         .manage(AppState { launch_path })
         .run(tauri::generate_context!())
