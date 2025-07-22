@@ -1,51 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import Editor from "@monaco-editor/react";
 import "./App.css";
-import { Commit, FileNode } from "./types";
+import { Commit } from "./types";
 
 async function getDirectoryFiles(dirPath: string): Promise<string[]> {
   try {
     const files = await invoke<string[]>("list_directory_files", { dirPath });
-    console.log({ files });
     return files;
   } catch (error) {
     console.error("Error listing directory files", error);
     return [];
   }
-}
-
-function buildFileTree(filePaths: string[]): FileNode[] {
-  const root: FileNode[] = [];
-
-  filePaths.forEach((filePath) => {
-    const parts = filePath.split("/");
-    let currentLevel = root;
-
-    parts.forEach((part, index) => {
-      const isFile = index === parts.length - 1;
-      const fullPath = parts.slice(0, index + 1).join("/");
-
-      let existingNode = currentLevel.find((node) => node.name === part);
-
-      if (!existingNode) {
-        existingNode = {
-          name: part,
-          path: fullPath,
-          isFile,
-          children: isFile ? undefined : [],
-        };
-        currentLevel.push(existingNode);
-      }
-
-      if (!isFile && existingNode.children) {
-        currentLevel = existingNode.children;
-      }
-    });
-  });
-
-  return root;
 }
 
 function getFileLanguage(fileName: string): string {
@@ -99,63 +66,97 @@ function getFileLanguage(fileName: string): string {
   return langMap[ext || ""] || "plaintext";
 }
 
-function FileTreeNode({
-  node,
-  onFileSelect,
-  selectedFile,
-  level = 0,
-}: {
-  node: FileNode;
-  onFileSelect: (path: string) => void;
-  selectedFile: string | null;
-  level?: number;
-}) {
-  const [isExpanded, setIsExpanded] = useState(level < 2);
+function CarouselCard({ commit, index }: { commit: Commit; index: number }) {
+  const fileName = commit.content ? "file" : "file";
+  const language = getFileLanguage(fileName);
 
-  if (node.isFile) {
+  return (
+    <div className={`carousel-card gradient-${(index % 3) + 1}`}>
+      <div className="card-header">
+        <div className="commit-info">
+          <code className="commit-hash">{commit.hash.slice(0, 8)}</code>
+          <span className="commit-author">{commit.author}</span>
+          <span className="commit-date">{commit.date}</span>
+        </div>
+        <div className="commit-message">{commit.message}</div>
+      </div>
+      
+      <div className="card-content">
+        <Editor
+          height="400px"
+          language={language}
+          value={commit.content}
+          theme="vs-dark"
+          options={{
+            readOnly: true,
+            minimap: { enabled: false },
+            fontSize: 13,
+            lineNumbers: "off",
+            wordWrap: "on",
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            scrollbar: { vertical: 'auto', horizontal: 'auto' },
+            folding: false,
+            glyphMargin: false,
+            lineDecorationsWidth: 0,
+            lineNumbersMinChars: 0,
+            overviewRulerLanes: 0,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; fileName: string }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const nextSlide = () => {
+    setCurrentIndex((prev) => (prev + 1) % commits.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentIndex((prev) => (prev - 1 + commits.length) % commits.length);
+  };
+
+  if (commits.length === 0) {
     return (
-      <div
-        className={`tree-file ${selectedFile?.endsWith(node.path) ? "selected" : ""}`}
-        style={{ paddingLeft: `${level * 16 + 20}px` }}
-        onClick={() => onFileSelect(node.path)}
-      >
-        <span className="file-icon">📄</span>
-        {node.name}
+      <div className="carousel-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading file history...</p>
       </div>
     );
   }
 
   return (
-    <div className="tree-folder">
-      <div
-        className="folder-header"
-        style={{ paddingLeft: `${level * 16}px` }}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <span className="folder-icon">{isExpanded ? "📂" : "📁"}</span>
-        {node.name}
-        <span className="folder-count">
-          ({node.children?.filter((child) => child.isFile).length || 0})
-        </span>
+    <div className="carousel-container">
+      <div className="carousel-header">
+        <h2>{fileName}</h2>
+        <p>{commits.length} commits in history</p>
       </div>
-      {isExpanded && node.children && (
-        <div className="folder-children">
-          {node.children
-            .sort((a, b) => {
-              if (a.isFile !== b.isFile) return a.isFile ? 1 : -1;
-              return a.name.localeCompare(b.name);
-            })
-            .map((child) => (
-              <FileTreeNode
-                key={child.path}
-                node={child}
-                onFileSelect={onFileSelect}
-                selectedFile={selectedFile}
-                level={level + 1}
-              />
-            ))}
-        </div>
-      )}
+
+      <button className="carousel-nav prev" onClick={prevSlide}>
+        ‹
+      </button>
+      
+      <div className="carousel-content">
+        <CarouselCard commit={commits[currentIndex]} index={currentIndex} />
+      </div>
+      
+      <button className="carousel-nav next" onClick={nextSlide}>
+        ›
+      </button>
+      
+      <div className="carousel-dots">
+        {commits.slice(0, 10).map((_, index) => (
+          <button
+            key={index}
+            className={`dot ${index === currentIndex ? 'active' : ''}`}
+            onClick={() => setCurrentIndex(index)}
+          />
+        ))}
+        {commits.length > 10 && <span className="dots-more">+{commits.length - 10}</span>}
+      </div>
     </div>
   );
 }
@@ -197,10 +198,9 @@ async function getGitHistoryWithContent(filePath: string): Promise<Commit[]> {
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
-  const [fileTree, setFileTree] = useState<FileNode[]>([]);
+  const [availableFiles, setAvailableFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [commits, setCommits] = useState<Commit[]>([]);
-  const [selectedCommit, setSelectedCommit] = useState<Commit | null>(null);
 
   async function pickDirectory() {
     const selected = await open({
@@ -212,161 +212,70 @@ function App() {
     if (typeof selected === "string") {
       setDirectory(selected);
       const files = await getDirectoryFiles(selected);
-      const tree = buildFileTree(files);
-      setFileTree(tree);
+      setAvailableFiles(files);
       setSelectedFile(null);
       setCommits([]);
-      setSelectedCommit(null);
     }
   }
 
-  async function selectFile(relativePath: string) {
+  async function selectFile(fileName: string) {
     if (!directory) return;
 
-    const fullPath = `${directory}/${relativePath}`;
+    const fullPath = `${directory}/${fileName}`;
     setSelectedFile(fullPath);
     const history = await getGitHistoryWithContent(fullPath);
     setCommits(history);
-    setSelectedCommit(history[0] || null); // Auto-select latest commit
   }
 
-  const totalFiles = fileTree.reduce((count, node) => {
-    const countFiles = (n: FileNode): number => {
-      if (n.isFile) return 1;
-      return (
-        n.children?.reduce((acc, child) => acc + countFiles(child), 0) || 0
-      );
-    };
-    return count + countFiles(node);
-  }, 0);
-
   const fileName = selectedFile ? selectedFile.split("/").pop() || "" : "";
-  const fileLanguage = fileName ? getFileLanguage(fileName) : "plaintext";
 
   return (
     <div className="app-container">
-      {/* Header */}
       <header className="app-header">
-        <div className="header-content">
-          <h1>⏰ Git Time Machine</h1>
-          <button className="pick-directory-btn" onClick={pickDirectory}>
-            📁 Pick Repository
-          </button>
-        </div>
+        <h1>Cronus</h1>
+        <p>git time machine</p>
       </header>
 
-      <div className="app-body">
-        {/* Sidebar - File Tree */}
-        <aside className="sidebar">
-          {directory ? (
-            <>
-              <div className="sidebar-header">
-                <h3>📂 Files</h3>
-                <span className="file-count">{totalFiles} files</span>
-              </div>
-
-              {fileTree.length > 0 && (
-                <div className="file-tree">
-                  {fileTree
-                    .sort((a, b) => {
-                      if (a.isFile !== b.isFile) return a.isFile ? 1 : -1;
-                      return a.name.localeCompare(b.name);
-                    })
-                    .map((node) => (
-                      <FileTreeNode
-                        key={node.path}
-                        node={node}
-                        onFileSelect={selectFile}
-                        selectedFile={selectedFile}
-                      />
-                    ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="sidebar-empty">
-              <p>Select a repository to browse files</p>
-            </div>
-          )}
-        </aside>
-
-        <main className="main-content">
-          {selectedFile ? (
-            <>
-              <div className="file-info">
-                <h2>{fileName}</h2>
-                <p>{selectedFile}</p>
-              </div>
-
-              <div className="content-layout">
-                <div className="timeline-panel">
-                  <h3>📜 History ({commits.length} commits)</h3>
-                  <div className="timeline">
-                    {commits.map((commit) => (
-                      <div
-                        key={commit.hash}
-                        className={`commit-card ${selectedCommit?.hash === commit.hash ? "active" : ""}`}
-                        onClick={() => setSelectedCommit(commit)}
-                      >
-                        <div className="commit-header">
-                          <code className="commit-hash">
-                            {commit.hash.slice(0, 8)}
-                          </code>
-                          <span className="commit-date">{commit.date}</span>
-                        </div>
-                        <div className="commit-author">{commit.author}</div>
-                        <div className="commit-message">{commit.message}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Code Editor */}
-                <div className="editor-panel">
-                  {selectedCommit && (
-                    <>
-                      <div className="editor-header">
-                        <h3>💾 Content at {selectedCommit.hash.slice(0, 8)}</h3>
-                        <span className="language-badge">{fileLanguage}</span>
-                      </div>
-                      <div className="editor-container">
-                        <Editor
-                          height="100%"
-                          language={fileLanguage}
-                          value={selectedCommit.content}
-                          theme="vs-dark"
-                          options={{
-                            readOnly: true,
-                            minimap: { enabled: true },
-                            fontSize: 14,
-                            lineNumbers: "on",
-                            wordWrap: "on",
-                            scrollBeyondLastLine: false,
-                            automaticLayout: true,
-                          }}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </>
-          ) : (
-            <EmptyState />
-          )}
-        </main>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="main-empty">
-      <div className="empty-state">
-        <h2>Cronus</h2>
-        <p>git time machine</p>
-      </div>
+      {!directory ? (
+        <div className="welcome-screen">
+          <div className="welcome-content">
+            <h2>Select a Repository</h2>
+            <p>Choose a git repository to explore file history</p>
+            <button className="pick-directory-btn" onClick={pickDirectory}>
+              📁 Pick Repository
+            </button>
+          </div>
+        </div>
+      ) : !selectedFile ? (
+        <div className="file-selection">
+          <div className="selection-header">
+            <h2>Choose a File</h2>
+            <p>{availableFiles.length} files found</p>
+          </div>
+          
+          <div className="file-grid">
+            {availableFiles.map((file) => (
+              <button
+                key={file}
+                className="file-card"
+                onClick={() => selectFile(file)}
+              >
+                <div className="file-icon">📄</div>
+                <div className="file-name">{file.split('/').pop()}</div>
+                {file.includes('/') && (
+                  <div className="file-path">{file.substring(0, file.lastIndexOf('/'))}/</div>
+                )}
+              </button>
+            ))}
+          </div>
+          
+          <button className="back-btn" onClick={() => setDirectory(null)}>
+            ← Back to Repository Selection
+          </button>
+        </div>
+      ) : (
+        <FileHistoryCarousel commits={commits} fileName={fileName} />
+      )}
     </div>
   );
 }

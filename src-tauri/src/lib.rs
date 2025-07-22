@@ -121,6 +121,49 @@ fn list_directory_files(dir_path: String) -> Result<Vec<String>, String> {
     Ok(files)
 }
 
+#[command]
+fn get_repo_history(repo_path: String) -> Result<String, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    let output = Command::new("git")
+        .args([
+            "log", 
+            "--pretty=format:%h|%an|%ad|%s",
+            "--name-only",
+            "--max-count=20" 
+        ])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).into_owned())
+    }
+}
+
+#[command]
+fn get_file_content_at_commit(repo_path: String, file_path: String, commit_hash: String) -> Result<String, String> {
+    let repo = PathBuf::from(&repo_path);
+    
+    let output = Command::new("git")
+        .args(&["show", &format!("{}:{}", commit_hash, file_path)])
+        .current_dir(&repo)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err("File not found at this commit".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let args: Vec<String> = std::env::args().collect();
@@ -135,7 +178,9 @@ pub fn run() {
             get_git_history,
             get_launch_path,
             get_git_file_at_commit,
-            list_directory_files
+            list_directory_files,
+            get_repo_history,
+            get_file_content_at_commit
         ])
         .manage(AppState { launch_path })
         .run(tauri::generate_context!())

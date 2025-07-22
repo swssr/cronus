@@ -12,3 +12,11 @@ export type FileNode = {
   isFile: boolean;
   children?: FileNode[];
 };
+
+export type RepoCommit = {
+  hash: string;
+  author: string;
+  date: string;
+  message: string;
+  changedFiles: string[];
+};
