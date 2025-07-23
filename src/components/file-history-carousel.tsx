@@ -5,12 +5,7 @@ import { getVisibleCommits } from "../carousel-utils";
 import { CarouselCard } from "./carousel-card";
 import { CommitTimeline } from "./commit-timeline";
 
-const VIEW_MODES = {
-  CAROUSEL: 'carousel' as const,
-  TIMELINE: 'timeline' as const
-};
-
-type ViewMode = typeof VIEW_MODES[keyof typeof VIEW_MODES];
+type ViewMode = 'carousel' | 'timeline';
 
 export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; fileName: string }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -18,7 +13,7 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
   const [isAnimating, setIsAnimating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>(VIEW_MODES.CAROUSEL);
+  const [viewMode, setViewMode] = useState<ViewMode>('carousel');
   const [diffOptions, setDiffOptions] = useState<DiffOptions>({
     baseCommit: commits[0]?.hash || '', // Default to most recent commit
     compareMode: 'current',
@@ -54,38 +49,6 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
   const handleDiffChange = useCallback((newDiffOptions: DiffOptions) => {
     setDiffOptions(newDiffOptions);
   }, []);
-
-  // If timeline view is selected, render the timeline component
-  if (viewMode === VIEW_MODES.TIMELINE) {
-    return (
-      <div className="view-container">
-        <div className="view-header">
-          <div className="view-toggle">
-            <button 
-              className={`view-mode-btn ${viewMode === VIEW_MODES.CAROUSEL ? 'active' : ''}`}
-              onClick={() => setViewMode(VIEW_MODES.CAROUSEL)}
-              title="Carousel view"
-            >
-              🎠 Carousel
-            </button>
-            <button 
-              className={`view-mode-btn ${viewMode === VIEW_MODES.TIMELINE ? 'active' : ''}`}
-              onClick={() => setViewMode(VIEW_MODES.TIMELINE)}
-              title="Timeline view"
-            >
-              📈 Timeline
-            </button>
-          </div>
-        </div>
-        <CommitTimeline 
-          commits={commits}
-          fileName={fileName}
-          diffOptions={diffOptions}
-          onDiffChange={handleDiffChange}
-        />
-      </div>
-    );
-  }
 
   const navigate = useCallback((direction: 'next' | 'prev' | number) => {
     if (isAnimating) return;
@@ -164,7 +127,7 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
           break;
         case 't':
           e.preventDefault();
-          setViewMode(prev => prev === VIEW_MODES.CAROUSEL ? VIEW_MODES.TIMELINE : VIEW_MODES.CAROUSEL);
+          setViewMode(prev => prev === 'carousel' ? 'timeline' : 'carousel');
           break;
       }
     };
@@ -199,6 +162,15 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
     setCurrentIndex(0);
   }, [searchQuery]);
 
+    const timeline = (
+        <CommitTimeline 
+          commits={commits}
+          fileName={fileName}
+          diffOptions={diffOptions}
+          onDiffChange={handleDiffChange}
+        />
+    );
+
   if (commits.length === 0) {
     return (
       <div className="carousel-loading">
@@ -208,8 +180,7 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
     );
   }
 
-  if (filteredCommits.length === 0) {
-    return (
+    const noResults = (
       <div className="carousel-container">
         <div className="carousel-header">
           <div className="file-info">
@@ -252,6 +223,9 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
         </div>
       </div>
     );
+
+  if (filteredCommits.length === 0) {
+    return noResults;
   }
 
   const visibleCommits = getVisibleCommits(filteredCommits, currentIndex, cardsToShow);
@@ -267,7 +241,7 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
     return { ...positions[position as keyof typeof positions], transition: spring };
   };
 
-  return (
+  const carousel = (
     <div className="carousel-container">
       <div className="carousel-header">
         <div className="file-info">
@@ -279,75 +253,7 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
             } • Showing diffs against {diffOptions.compareMode} version
           </p>
         </div>
-        
-        <div className="carousel-controls">
-          <div className="view-toggle">
-            <button 
-              className={`view-mode-btn ${viewMode === VIEW_MODES.CAROUSEL ? 'active' : ''}`}
-              onClick={() => setViewMode(VIEW_MODES.CAROUSEL)}
-              title="Carousel view (t)"
-            >
-              🎠
-            </button>
-            <button 
-              className={`view-mode-btn ${viewMode === VIEW_MODES.TIMELINE ? 'active' : ''}`}
-              onClick={() => setViewMode(VIEW_MODES.TIMELINE)}
-              title="Timeline view (t)"
-            >
-              📈
-            </button>
-          </div>
-
-          <button 
-            className={`search-toggle ${showSearch ? 'active' : ''}`}
-            onClick={() => {
-              setShowSearch(!showSearch);
-              if (showSearch) setSearchQuery("");
-              else setTimeout(() => searchInputRef.current?.focus(), 100);
-            }}
-            title="Search commits (/ or f)"
-          >
-            🔍
-          </button>
-          
-          <div className="view-selector">
-            {[1, 3, 5].map((count) => (
-              <button
-                key={count}
-                className={cardsToShow === count ? 'active' : ''}
-                onClick={() => setCardsToShow(count as 1 | 3 | 5)}
-                title={`${count} card view (${count})`}
-              >
-                {count}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
-
-      {showSearch && (
-        <div className="search-container">
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search commits, authors, or code... (ESC to close)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
-            autoFocus
-          />
-          {searchQuery && (
-            <button 
-              className="clear-search" 
-              onClick={() => setSearchQuery("")}
-              title="Clear search"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      )}
-
       <div 
         ref={constraintsRef}
         className="carousel-viewport"
@@ -448,4 +354,71 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
       </div>
     </div>
   );
+
+  const viewHeader = (
+    <>
+
+        <div className="view-controls">
+          <div className="view-toggle">
+            <button 
+              className={`view-mode-btn ${viewMode === 'carousel' ? 'active' : ''}`}
+              onClick={() => setViewMode('carousel')}
+              title="Carousel view (t)"
+            >
+              Carousel
+            </button>
+            <button 
+              className={`view-mode-btn ${viewMode === 'timeline' ? 'active' : ''}`}
+              onClick={() => setViewMode('timeline')}
+              title="Timeline view (t)"
+            >
+              Timeline
+            </button>
+          </div>
+          
+          {viewMode === 'carousel' && (
+            <div className="view-selector">
+            {[1, 3, 5].map((count) => (
+              <button
+                key={count}
+                className={cardsToShow === count ? 'active' : ''}
+                onClick={() => setCardsToShow(count as 1 | 3 | 5)}
+                title={`${count} card view (${count})`}
+              >
+                {count}
+              </button>
+            ))}
+          </div>
+          )}
+        </div>
+
+        <div className="search-container">
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search commits, authors, or code... (ESC to close)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+            autoFocus
+          />
+            <button 
+              className="clear-search" 
+              onClick={() => setSearchQuery("")}
+              title="Clear search"
+            >
+            ✕
+          </button>
+        </div>
+    </>
+  )
+
+  return (
+    <div className="view-container">
+      {viewHeader}
+      {viewMode === 'timeline' ? timeline : carousel}
+    </div>
+  )
 }
+
+function CarouselView() {}

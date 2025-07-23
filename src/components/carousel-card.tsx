@@ -1,6 +1,6 @@
 import { Editor } from "@monaco-editor/react";
 import { Commit, DiffOptions } from "../types";
-import { getFileLanguage } from "../utils";
+import { getFileLanguage } from "../utils/index";
 
 export function CarouselCard({ 
   commit, 

@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Commit, DiffOptions } from "../types";
 import { Editor } from "@monaco-editor/react";
-import { getFileLanguage } from "../utils";
+import { getFileLanguage } from "../utils/index";
 
 interface CommitTimelineProps {
   commits: Commit[];
