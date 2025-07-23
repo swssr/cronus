@@ -855,8 +855,6 @@ body {
 
 
 
-/* Optimized Carousel Styles - Performance Focused */
-
 .carousel-container {
   display: flex;
   flex-direction: column;
@@ -932,7 +930,6 @@ body {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Optimized Viewport */
 .carousel-viewport {
   position: relative;
   width: 100%;
@@ -951,12 +948,6 @@ body {
 .carousel-viewport:active {
   cursor: grabbing;
 }
-
-.carousel-viewport.transitioning {
-  pointer-events: none;
-}
-
-/* Optimized Track */
 .carousel-track {
   display: flex;
   align-items: center;
@@ -967,7 +958,6 @@ body {
   transform-style: preserve-3d;
 }
 
-/* Optimized Slide Animations - Framer Motion Controlled */
 .carousel-slide {
   position: absolute;
   transform-style: preserve-3d;
@@ -976,24 +966,12 @@ body {
   -webkit-backface-visibility: hidden;
 }
 
-/* Position classes for Framer Motion reference */
-.carousel-slide.center,
-.carousel-slide.left,
-.carousel-slide.right,
-.carousel-slide.far-left,
-.carousel-slide.far-right {
-  /* Positioning handled by Framer Motion */
-}
-
-/* Interactive slides - clickable side cards */
 .carousel-slide.left,
 .carousel-slide.right,
 .carousel-slide.far-left,
 .carousel-slide.far-right {
   cursor: pointer;
 }
-
-/* Optimized Card Styles - Framer Motion Controlled */
 .carousel-card {
   width: 400px;
   height: 420px;
@@ -1008,7 +986,6 @@ body {
   transform: translateZ(0); /* Force hardware acceleration */
 }
 
-/* Navigation Buttons */
 .carousel-nav {
   position: absolute;
   top: 50%;
@@ -1047,8 +1024,6 @@ body {
 .carousel-nav.next {
   right: 2rem;
 }
-
-/* Indicators */
 .carousel-indicators {
   margin-top: 3rem;
   display: flex;
@@ -1112,7 +1087,6 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Loading State */
 .carousel-loading {
   display: flex;
   flex-direction: column;
@@ -1136,8 +1110,6 @@ body {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
-/* Responsive Design */
 @media (max-width: 768px) {
   .carousel-container {
     padding: 1rem;
@@ -1193,14 +1165,11 @@ body {
   }
 }
 
-/* Performance optimizations */
 .carousel-slide,
 .carousel-card,
 .carousel-nav {
   contain: layout style paint;
 }
-
-/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .carousel-slide {
     transition: opacity 0.3s ease;

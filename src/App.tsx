@@ -2,8 +2,7 @@ import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
 import { Commit } from "./types";
-import { getDirectoryFiles, getFileIcon, organizeFiles } from "./utils";
-import { getGitHistoryWithContent } from "./git-utils";
+import { getDirectoryFiles, getFileIcon, organizeFiles, getGitHistoryWithContent } from "./utils/index";
 import { FileHistoryCarousel } from "./components/file-history-carousel";
 
 function App() {

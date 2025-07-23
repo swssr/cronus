@@ -55,34 +55,3 @@ export function getVisibleCommits(
   
   return visible;
 }
-
-export function getCarouselSettings(cardsToShow: number) {
-  const settings = {
-    3: {
-      cardWidth: 400,
-      gap: '2rem',
-      scales: { left: 0.85, center: 1, right: 0.85 },
-      rotations: { left: 15, center: 0, right: -15 },
-      opacities: { left: 0.6, center: 1, right: 0.6 },
-      translations: { left: '-20%', center: '0', right: '20%' }
-    },
-    5: {
-      cardWidth: 320,
-      gap: '1.5rem', 
-      scales: { 'far-left': 0.7, left: 0.85, center: 1, right: 0.85, 'far-right': 0.7 },
-      rotations: { 'far-left': 25, left: 15, center: 0, right: -15, 'far-right': -25 },
-      opacities: { 'far-left': 0.4, left: 0.6, center: 1, right: 0.6, 'far-right': 0.4 },
-      translations: { 'far-left': '-40%', left: '-20%', center: '0', right: '20%', 'far-right': '40%' }
-    },
-    1: {
-      cardWidth: 500,
-      gap: '0',
-      scales: { center: 1 },
-      rotations: { center: 0 },
-      opacities: { center: 1 },
-      translations: { center: '0' }
-    }
-  };
-  
-  return settings[cardsToShow as keyof typeof settings] || settings[3];
-} 
