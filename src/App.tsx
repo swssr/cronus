@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
-import { Commit } from "./types";
-import { getDirectoryFiles, getFileIcon, organizeFiles, getGitHistoryWithContent } from "./utils/index";
+import { Commit, RecentRepository } from "./types";
+import { 
+  getDirectoryFiles, 
+  getFileIcon, 
+  organizeFiles, 
+  getGitHistoryWithContent,
+  getRecentRepositories,
+  addRecentRepository,
+  removeRecentRepository,
+  clearRecentRepositories
+} from "./utils/index";
 import { FileHistoryCarousel } from "./components/file-history-carousel";
 
 function App() {
@@ -10,6 +19,12 @@ function App() {
   const [availableFiles, setAvailableFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [commits, setCommits] = useState<Commit[]>([]);
+  const [recentRepos, setRecentRepos] = useState<RecentRepository[]>([]);
+
+  // Load recent repositories on component mount
+  useEffect(() => {
+    setRecentRepos(getRecentRepositories());
+  }, []);
 
   async function pickDirectory() {
     const selected = await open({
@@ -19,12 +34,30 @@ function App() {
     });
 
     if (typeof selected === "string") {
-      setDirectory(selected);
-      const files = await getDirectoryFiles(selected);
-      setAvailableFiles(files);
-      setSelectedFile(null);
-      setCommits([]);
+      await openRepository(selected);
     }
+  }
+
+  async function openRepository(repoPath: string) {
+    setDirectory(repoPath);
+    const files = await getDirectoryFiles(repoPath);
+    setAvailableFiles(files);
+    setSelectedFile(null);
+    setCommits([]);
+    
+    // Add to recent repositories
+    addRecentRepository(repoPath, files.length);
+    setRecentRepos(getRecentRepositories());
+  }
+
+  function handleRemoveRecentRepo(repoPath: string) {
+    removeRecentRepository(repoPath);
+    setRecentRepos(getRecentRepositories());
+  }
+
+  function handleClearRecentRepos() {
+    clearRecentRepositories();
+    setRecentRepos([]);
   }
 
   async function selectFile(fileName: string) {
@@ -68,6 +101,51 @@ function App() {
             <button className="pick-directory-btn" onClick={pickDirectory}>
               📁 Pick Repository
             </button>
+
+            {recentRepos.length > 0 && (
+              <div className="recent-repositories">
+                <div className="recent-header">
+                  <h3>Recent Repositories</h3>
+                  <button 
+                    className="clear-recents-btn" 
+                    onClick={handleClearRecentRepos}
+                    title="Clear all recent repositories"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                
+                <div className="recent-repos-list">
+                  {recentRepos.map((repo) => (
+                    <div key={repo.path} className="recent-repo-card">
+                      <button 
+                        className="recent-repo-btn"
+                        onClick={() => openRepository(repo.path)}
+                        title={`Open ${repo.path}`}
+                      >
+                        <div className="repo-icon">📁</div>
+                        <div className="repo-details">
+                          <div className="repo-name">{repo.name}</div>
+                          <div className="repo-path">{repo.path}</div>
+                          <div className="repo-meta">
+                            {repo.fileCount && <span>{repo.fileCount} files</span>}
+                            <span>•</span>
+                            <span>{new Date(repo.lastAccessed).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </button>
+                      <button 
+                        className="remove-repo-btn" 
+                        onClick={() => handleRemoveRecentRepo(repo.path)}
+                        title="Remove from recent repositories"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : !selectedFile ? (

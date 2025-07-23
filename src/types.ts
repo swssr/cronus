@@ -38,3 +38,11 @@ export interface DiffResult {
   modified: string[];
   unchanged: string[];
 }
+
+export interface RecentRepository {
+  path: string;
+  name: string;
+  lastAccessed: string; // ISO date string
+  fileCount?: number;
+  description?: string;
+}

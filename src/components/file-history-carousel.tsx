@@ -3,6 +3,14 @@ import { motion, AnimatePresence, PanInfo, useMotionValue } from "framer-motion"
 import { Commit, DiffOptions } from "../types";
 import { getVisibleCommits } from "../carousel-utils";
 import { CarouselCard } from "./carousel-card";
+import { CommitTimeline } from "./commit-timeline";
+
+const VIEW_MODES = {
+  CAROUSEL: 'carousel' as const,
+  TIMELINE: 'timeline' as const
+};
+
+type ViewMode = typeof VIEW_MODES[keyof typeof VIEW_MODES];
 
 export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; fileName: string }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -10,6 +18,7 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
   const [isAnimating, setIsAnimating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>(VIEW_MODES.CAROUSEL);
   const [diffOptions, setDiffOptions] = useState<DiffOptions>({
     baseCommit: commits[0]?.hash || '', // Default to most recent commit
     compareMode: 'current',
@@ -45,6 +54,38 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
   const handleDiffChange = useCallback((newDiffOptions: DiffOptions) => {
     setDiffOptions(newDiffOptions);
   }, []);
+
+  // If timeline view is selected, render the timeline component
+  if (viewMode === VIEW_MODES.TIMELINE) {
+    return (
+      <div className="view-container">
+        <div className="view-header">
+          <div className="view-toggle">
+            <button 
+              className={`view-mode-btn ${viewMode === VIEW_MODES.CAROUSEL ? 'active' : ''}`}
+              onClick={() => setViewMode(VIEW_MODES.CAROUSEL)}
+              title="Carousel view"
+            >
+              🎠 Carousel
+            </button>
+            <button 
+              className={`view-mode-btn ${viewMode === VIEW_MODES.TIMELINE ? 'active' : ''}`}
+              onClick={() => setViewMode(VIEW_MODES.TIMELINE)}
+              title="Timeline view"
+            >
+              📈 Timeline
+            </button>
+          </div>
+        </div>
+        <CommitTimeline 
+          commits={commits}
+          fileName={fileName}
+          diffOptions={diffOptions}
+          onDiffChange={handleDiffChange}
+        />
+      </div>
+    );
+  }
 
   const navigate = useCallback((direction: 'next' | 'prev' | number) => {
     if (isAnimating) return;
@@ -121,12 +162,16 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
           const nextMode = modes[(currentModeIndex + 1) % modes.length];
           setDiffOptions(prev => ({ ...prev, compareMode: nextMode }));
           break;
+        case 't':
+          e.preventDefault();
+          setViewMode(prev => prev === VIEW_MODES.CAROUSEL ? VIEW_MODES.TIMELINE : VIEW_MODES.CAROUSEL);
+          break;
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, filteredCommits.length, navigate, showSearch, diffOptions.compareMode]);
+  }, [currentIndex, filteredCommits.length, navigate, showSearch, diffOptions.compareMode, viewMode]);
 
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
     const { offset, velocity } = info;
@@ -236,6 +281,23 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
         </div>
         
         <div className="carousel-controls">
+          <div className="view-toggle">
+            <button 
+              className={`view-mode-btn ${viewMode === VIEW_MODES.CAROUSEL ? 'active' : ''}`}
+              onClick={() => setViewMode(VIEW_MODES.CAROUSEL)}
+              title="Carousel view (t)"
+            >
+              🎠
+            </button>
+            <button 
+              className={`view-mode-btn ${viewMode === VIEW_MODES.TIMELINE ? 'active' : ''}`}
+              onClick={() => setViewMode(VIEW_MODES.TIMELINE)}
+              title="Timeline view (t)"
+            >
+              📈
+            </button>
+          </div>
+
           <button 
             className={`search-toggle ${showSearch ? 'active' : ''}`}
             onClick={() => {
@@ -382,7 +444,7 @@ export function FileHistoryCarousel({ commits, fileName }: { commits: Commit[]; 
       </div>
 
       <div className="keyboard-hints">
-        <span>💡 Shortcuts: ←→ navigate • / search • d diff mode • 1,3,5 view modes • ESC close</span>
+        <span>💡 Shortcuts: ←→ navigate • / search • t toggle view • d diff mode • 1,3,5 view modes • ESC close</span>
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ export function CarouselCard({
 }) {
     const fileName = commit.content ? "file" : "file";
     const language = getFileLanguage(fileName);
+    console.log({language, fileName, content: commit})
 
     const copyToClipboard = async (text: string) => {
       try {

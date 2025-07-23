@@ -1,5 +1,66 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Commit } from "../types";
+import { Commit, RecentRepository } from "../types";
+
+const RECENT_REPOS_KEY = 'cronus_recent_repositories';
+const MAX_RECENT_REPOS = 10;
+
+// Recent Repositories Management
+export function getRecentRepositories(): RecentRepository[] {
+  try {
+    const stored = localStorage.getItem(RECENT_REPOS_KEY);
+    if (!stored) return [];
+    
+    const repos: RecentRepository[] = JSON.parse(stored);
+    // Sort by lastAccessed date (most recent first)
+    return repos.sort((a, b) => new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime());
+  } catch (error) {
+    console.error('Error loading recent repositories:', error);
+    return [];
+  }
+}
+
+export function addRecentRepository(repoPath: string, fileCount?: number): void {
+  try {
+    const existing = getRecentRepositories();
+    const repoName = repoPath.split('/').pop() || repoPath;
+    
+    // Remove existing entry if it exists
+    const filtered = existing.filter(repo => repo.path !== repoPath);
+    
+    // Add new entry at the beginning
+    const newRepo: RecentRepository = {
+      path: repoPath,
+      name: repoName,
+      lastAccessed: new Date().toISOString(),
+      fileCount,
+    };
+    
+    const updated = [newRepo, ...filtered].slice(0, MAX_RECENT_REPOS);
+    localStorage.setItem(RECENT_REPOS_KEY, JSON.stringify(updated));
+    
+    console.log(`Added ${repoName} to recent repositories`);
+  } catch (error) {
+    console.error('Error saving recent repository:', error);
+  }
+}
+
+export function removeRecentRepository(repoPath: string): void {
+  try {
+    const existing = getRecentRepositories();
+    const filtered = existing.filter(repo => repo.path !== repoPath);
+    localStorage.setItem(RECENT_REPOS_KEY, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Error removing recent repository:', error);
+  }
+}
+
+export function clearRecentRepositories(): void {
+  try {
+    localStorage.removeItem(RECENT_REPOS_KEY);
+  } catch (error) {
+    console.error('Error clearing recent repositories:', error);
+  }
+}
 
 export async function getGitHistoryWithContent(filePath: string): Promise<Commit[]> {
   try {
@@ -100,40 +161,67 @@ export async function getDirectoryFiles(dirPath: string): Promise<string[]> {
   
   export function getFileIcon(fileName: string): string {
     const ext = fileName.split(".").pop()?.toLowerCase();
-    const iconMap: Record<string, string> = {
-      // Programming languages
-      ts: "🟦", tsx: "🟦", js: "🟨", jsx: "🟨",
-      py: "🐍", rs: "🦀", go: "🐹", java: "☕",
-      cpp: "⚡", c: "⚡", cs: "🟣", php: "🐘",
-      rb: "💎", swift: "🦉", kt: "🟠", scala: "🔴",
-      
-      // Web
-      html: "🌐", css: "🎨", scss: "🎨", sass: "🎨",
-      
-      // Data
-      json: "📋", yaml: "📋", yml: "📋", xml: "📋",
-      csv: "📊", sql: "🗄️",
-      
-      // Documentation
-      md: "📝", txt: "📄", pdf: "📕",
-      
-      // Config
-      toml: "⚙️", ini: "⚙️", cfg: "⚙️", conf: "⚙️",
-      
-      // Shell
-      sh: "🐚", bash: "🐚", zsh: "🐚", fish: "🐚",
-      
-      // Others
-      dockerfile: "🐳", makefile: "🔨",
-      gitignore: "🚫", license: "📜",
-    };
+    const name = fileName.toLowerCase();
     
-    const lowerName = fileName.toLowerCase();
-    if (lowerName.includes('readme')) return "📖";
-    if (lowerName.includes('license')) return "📜";
-    if (lowerName.includes('dockerfile')) return "🐳";
-    if (lowerName.includes('makefile')) return "🔨";
-    if (lowerName.includes('.git')) return "🔧";
+    // Special files
+    if (name.includes("readme")) return "📖";
+    if (name.includes("license")) return "📄";
+    if (name.includes("dockerfile")) return "🐳";
+    if (name.includes("makefile")) return "🔧";
+    if (name.includes("package.json")) return "📦";
+    if (name.includes("tsconfig")) return "⚙️";
+    if (name.includes("eslint") || name.includes("prettier")) return "✨";
+    if (name.includes(".env") || name.includes("config")) return "⚙️";
+    
+    // Extensions
+    const iconMap: Record<string, string> = {
+      ts: "🟦",
+      tsx: "⚛️",
+      js: "🟨",
+      jsx: "⚛️",
+      py: "🐍",
+      rs: "🦀",
+      go: "🐹",
+      java: "☕",
+      cpp: "🔵",
+      c: "🔷",
+      cs: "🔷",
+      php: "🐘",
+      rb: "💎",
+      swift: "🐦",
+      kt: "🟣",
+      scala: "🔴",
+      sh: "🐚",
+      bash: "🐚",
+      zsh: "🐚",
+      fish: "🐠",
+      ps1: "💙",
+      sql: "🗃️",
+      html: "🌐",
+      css: "🎨",
+      scss: "🎨",
+      sass: "🎨",
+      less: "🎨",
+      xml: "📄",
+      json: "📄",
+      yaml: "📄",
+      yml: "📄",
+      toml: "📄",
+      ini: "⚙️",
+      cfg: "⚙️",
+      conf: "⚙️",
+      md: "📝",
+      txt: "📄",
+      log: "📋",
+      gitignore: "🚫",
+      dockerfile: "🐳",
+      makefile: "🔧",
+      r: "📊",
+      dart: "🎯",
+      lua: "🌙",
+      vim: "💚",
+      tex: "📖",
+    };
     
     return iconMap[ext || ""] || "📄";
   }
