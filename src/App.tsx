@@ -2,17 +2,19 @@ import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
 import { Commit, RecentRepository } from "./types";
-import { 
-  getDirectoryFiles, 
-  getFileIcon, 
-  organizeFiles, 
+import {
+  getDirectoryFiles,
+  getFileIcon,
+  organizeFiles,
   getGitHistoryWithContent,
   getRecentRepositories,
   addRecentRepository,
   removeRecentRepository,
-  clearRecentRepositories
+  clearRecentRepositories,
 } from "./utils/index";
 import { FileHistoryCarousel } from "./components/file-history-carousel";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "./components/ui/input";
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
@@ -44,7 +46,7 @@ function App() {
     setAvailableFiles(files);
     setSelectedFile(null);
     setCommits([]);
-    
+
     // Add to recent repositories
     addRecentRepository(repoPath, files.length);
     setRecentRepos(getRecentRepositories());
@@ -106,19 +108,19 @@ function App() {
               <div className="recent-repositories">
                 <div className="recent-header">
                   <h3>Recent Repositories</h3>
-                  <button 
-                    className="clear-recents-btn" 
+                  <button
+                    className="clear-recents-btn"
                     onClick={handleClearRecentRepos}
                     title="Clear all recent repositories"
                   >
                     Clear All
                   </button>
                 </div>
-                
+
                 <div className="recent-repos-list">
                   {recentRepos.map((repo) => (
                     <div key={repo.path} className="recent-repo-card">
-                      <button 
+                      <button
                         className="recent-repo-btn"
                         onClick={() => openRepository(repo.path)}
                         title={`Open ${repo.path}`}
@@ -128,14 +130,26 @@ function App() {
                           <div className="repo-name">{repo.name}</div>
                           <div className="repo-path">{repo.path}</div>
                           <div className="repo-meta">
-                            {repo.fileCount && <span>{repo.fileCount} files</span>}
+                            {repo.fileCount && (
+                              <>
+                                <Badge
+                                  className="h-5 min-w-5 rounded-full px-1 font-mono tabular-nums"
+                                  variant="outline"
+                                >
+                                  {repo.fileCount}
+                                </Badge>
+                                <span>files</span>
+                              </>
+                            )}
                             <span>•</span>
-                            <span>{new Date(repo.lastAccessed).toLocaleDateString()}</span>
+                            <span>
+                              {new Date(repo.lastAccessed).toLocaleDateString()}
+                            </span>
                           </div>
                         </div>
                       </button>
-                      <button 
-                        className="remove-repo-btn" 
+                      <button
+                        className="remove-repo-btn"
                         onClick={() => handleRemoveRecentRepo(repo.path)}
                         title="Remove from recent repositories"
                       >
@@ -153,6 +167,12 @@ function App() {
           <div className="selection-header">
             <h2>Choose a File</h2>
             <p>{availableFiles.length} files found</p>
+            <div className="search-wrapper flex justify-center p-2 w-full">
+              <Input
+                className="w-[400px] indent-5"
+                placeholder="Search for file"
+              />
+            </div>
           </div>
 
           <div className="file-categories">

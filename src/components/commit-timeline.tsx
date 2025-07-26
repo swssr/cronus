@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Commit, DiffOptions } from "../types";
 import { Editor } from "@monaco-editor/react";
 import { getFileLanguage } from "../utils/index";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CommitTimelineProps {
   commits: Commit[];
@@ -89,6 +90,7 @@ export function CommitTimeline({ commits, fileName, diffOptions, onDiffChange }:
   }
 
   return (
+    <ScrollArea>
     <div className="timeline-container">
       <div className="timeline-header">
         <div className="timeline-title">
@@ -276,5 +278,6 @@ export function CommitTimeline({ commits, fileName, diffOptions, onDiffChange }:
         </div>
       </div>
     </div>
+    </ScrollArea>
   );
 } 
