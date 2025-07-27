@@ -15,6 +15,11 @@ import {
 import { FileHistoryCarousel } from "./components/file-history-carousel";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "./components/ui/input";
+import { Button } from "./components/ui/button";
+import { ChevronUp, ChevronDown, Search, X } from "lucide-react";
+import { useRef } from "react";
+import { animate } from "framer-motion";
+import { useCallback } from "react";
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
@@ -98,7 +103,23 @@ function App() {
     ),
   );
 
-  console.log("Search results: ", filteredFiles);
+
+  // Flatten filtered files for keyboard navigation
+  const flatResults: { category: string; file: string }[] = [];
+  Object.entries(filteredFiles).forEach(([category, files]) => {
+    files.forEach((file) => flatResults.push({ category, file }));
+  });
+
+  const [focusedResult, setFocusedResult] = useState(0);
+
+  // Best match is the first result
+  const bestMatch = flatResults[0] || null;
+
+  // Reset focus when searchTerm or results change
+  useEffect(() => {
+    setFocusedResult(0);
+  }, []);
+
 
   // Helper to highlight search matches
   function highlightMatch(text: string, query: string) {
@@ -114,11 +135,29 @@ function App() {
     );
   }
 
+  // Keyboard navigation handler
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (flatResults.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setFocusedResult((prev) => Math.min(prev + 1, flatResults.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setFocusedResult((prev) => Math.max(prev - 1, 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const result = flatResults[focusedResult];
+      if (result) selectFile(result.file);
+    }
+  };
+
+  const inputRef = useRef<HTMLInputElement>(null);
+
   return (
     <div className="app-container">
       <header className="app-header">
         {directory && (
-          <button className="back-btn" onClick={() => setDirectory(null)}>
+          <button type="button" className="back-btn" onClick={() => setDirectory(null)}>
             ← Back to Repository Selection
           </button>
         )}
@@ -131,7 +170,7 @@ function App() {
           <div className="welcome-content">
             <h2>Select a Repository</h2>
             <p>Choose a git repository to explore file history</p>
-            <button className="pick-directory-btn" onClick={pickDirectory}>
+            <button type="button" className="pick-directory-btn" onClick={pickDirectory}>
               📁 Pick Repository
             </button>
 
@@ -140,6 +179,7 @@ function App() {
                 <div className="recent-header">
                   <h3>Recent Repositories</h3>
                   <button
+                    type="button"
                     className="clear-recents-btn"
                     onClick={handleClearRecentRepos}
                     title="Clear all recent repositories"
@@ -152,6 +192,7 @@ function App() {
                   {recentRepos.map((repo) => (
                     <div key={repo.path} className="recent-repo-card">
                       <button
+                        type="button"
                         className="recent-repo-btn"
                         onClick={() => openRepository(repo.path)}
                         title={`Open ${repo.path}`}
@@ -180,6 +221,7 @@ function App() {
                         </div>
                       </button>
                       <button
+                        type="button"
                         className="remove-repo-btn"
                         onClick={() => handleRemoveRecentRepo(repo.path)}
                         title="Remove from recent repositories"
@@ -199,58 +241,111 @@ function App() {
             <h2>Choose a File</h2>
             <p>{availableFiles.length} files found</p>
             <div className="search-wrapper flex justify-center p-2 w-full">
-              <Input
-                className="w-[400px] indent-5"
-                placeholder="Search for file"
-                onChange={handleSearch}
-                value={searchTerm}
-              />
-              {searchTerm && (
-                <button
+              <div className="relative flex w-[400px] items-center gap-1 bg-background rounded-md border border-input px-2 py-1 shadow-xs">
+                <Input
+                  ref={inputRef}
+                  className="flex-1 border-none bg-transparent focus:ring-0 focus-visible:ring-0 focus:outline-none"
+                  placeholder="Search for file"
+                  onChange={handleSearch}
+                  value={searchTerm}
+                  onKeyDown={handleSearchKeyDown}
+                  autoFocus
+                />
+                {searchTerm && flatResults.length > 0 && (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setFocusedResult((prev) => Math.max(prev - 1, 0));
+                        inputRef.current?.focus();
+                      }}
+                      disabled={focusedResult === 0}
+                      title="Previous result (↑)"
+                      tabIndex={-1}
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setFocusedResult((prev) => Math.min(prev + 1, flatResults.length - 1));
+                        inputRef.current?.focus();
+                      }}
+                      disabled={focusedResult === flatResults.length - 1}
+                      title="Next result (↓)"
+                      tabIndex={-1}
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
                   onClick={() => setSearchTerm("")}
-                  className="clear-search-btn ml-2 px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100"
                   title="Clear search"
+                  tabIndex={-1}
+                  style={{ visibility: searchTerm ? "visible" : "hidden" }}
                 >
-                  ✕
-                </button>
-              )}
+                  <X className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    const result = flatResults[focusedResult];
+                    if (result) selectFile(result.file);
+                  }}
+                  disabled={flatResults.length === 0}
+                  title="Jump to result (Enter)"
+                  tabIndex={-1}
+                >
+                  <Search className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
 
           <div className="file-categories">
             {Object.keys(filteredFiles).map((category) => {
-              if (!filteredFiles[category] || filteredFiles[category].length === 0)
-                return null;
-
+              if (!filteredFiles[category] || filteredFiles[category].length === 0) return null;
               return (
                 <div key={category} className="file-category">
                   <div className="category-header">
                     <h3>{category}</h3>
-                    <span className="category-count">
-                      {filteredFiles[category].length}
-                    </span>
+                    <span className="category-count">{filteredFiles[category].length}</span>
                   </div>
-
                   <div className="category-files">
-                    {filteredFiles[category].map((file) => (
-                      <button
-                        key={file}
-                        className="file-card"
-                        onClick={() => selectFile(file)}
-                      >
-                        <div className="file-icon">{getFileIcon(file)}</div>
-                        <div className="file-details">
-                          <div className="file-name">
-                            {highlightMatch(file.split("/").pop() || "", searchTerm)}
-                          </div>
-                          {file.includes("/") && (
-                            <div className="file-path">
-                              {file.substring(0, file.lastIndexOf("/"))}/
+                    {filteredFiles[category].map((file) => {
+                      // Find the index in flatResults
+                      const idx = flatResults.findIndex(r => r.category === category && r.file === file);
+                      return (
+                        <button
+                          type="button"
+                          key={file}
+                          className={`file-card${idx === focusedResult ? " focused" : ""}`}
+                          onClick={() => selectFile(file)}
+                        >
+                          <div className="file-icon">{getFileIcon(file)}</div>
+                          <div className="file-details">
+                            <div className="file-name">
+                              {highlightMatch(file.split("/").pop() || "", searchTerm)}
                             </div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                            {file.includes("/") && (
+                              <div className="file-path">
+                                {file.substring(0, file.lastIndexOf("/"))}/
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -260,7 +355,7 @@ function App() {
             )}
           </div>
 
-          <button className="back-btn" onClick={() => setDirectory(null)}>
+          <button type="button" className="back-btn" onClick={() => setDirectory(null)}>
             ← Back to Repository Selection
           </button>
         </div>
