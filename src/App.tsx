@@ -23,6 +23,8 @@ function App() {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [recentRepos, setRecentRepos] = useState<RecentRepository[]>([]);
 
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
   // Load recent repositories on component mount
   useEffect(() => {
     setRecentRepos(getRecentRepositories());
@@ -73,15 +75,44 @@ function App() {
 
   const fileName = selectedFile ? selectedFile.split("/").pop() || "" : "";
   const organizedFiles = organizeFiles(availableFiles);
-  const categoryOrder = [
-    "Source Code",
-    "Web",
-    "Scripts",
-    "Configuration",
-    "Documentation",
-    "Data",
-    "Other",
-  ];
+  //const categoryOrder = [
+  //  "Source Code",
+  //  "Web",
+  //  "Scripts",
+  //  "Configuration",
+  //  "Documentation",
+  //  "Data",
+  //  "Other",
+  //];
+
+  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("Value: ", event.target.value);
+    setSearchTerm(event.target.value);
+  };
+
+  const filteredFiles = Object.fromEntries(
+    Object.entries(organizedFiles).filter(([_key, value]) =>
+      value.some((file) =>
+        file.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    ),
+  );
+
+  console.log("Search results: ", filteredFiles);
+
+  // Helper to highlight search matches
+  function highlightMatch(text: string, query: string) {
+    if (!query) return text;
+    const index = text.toLowerCase().indexOf(query.toLowerCase());
+    if (index === -1) return text;
+    return (
+      <>
+        {text.substring(0, index)}
+        <span className="highlight">{text.substring(index, index + query.length)}</span>
+        {text.substring(index + query.length)}
+      </>
+    );
+  }
 
   return (
     <div className="app-container">
@@ -171,16 +202,24 @@ function App() {
               <Input
                 className="w-[400px] indent-5"
                 placeholder="Search for file"
+                onChange={handleSearch}
+                value={searchTerm}
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="clear-search-btn ml-2 px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           </div>
 
           <div className="file-categories">
-            {categoryOrder.map((category) => {
-              if (
-                !organizedFiles[category] ||
-                organizedFiles[category].length === 0
-              )
+            {Object.keys(filteredFiles).map((category) => {
+              if (!filteredFiles[category] || filteredFiles[category].length === 0)
                 return null;
 
               return (
@@ -188,12 +227,12 @@ function App() {
                   <div className="category-header">
                     <h3>{category}</h3>
                     <span className="category-count">
-                      {organizedFiles[category].length}
+                      {filteredFiles[category].length}
                     </span>
                   </div>
 
                   <div className="category-files">
-                    {organizedFiles[category].map((file) => (
+                    {filteredFiles[category].map((file) => (
                       <button
                         key={file}
                         className="file-card"
@@ -202,7 +241,7 @@ function App() {
                         <div className="file-icon">{getFileIcon(file)}</div>
                         <div className="file-details">
                           <div className="file-name">
-                            {file.split("/").pop()}
+                            {highlightMatch(file.split("/").pop() || "", searchTerm)}
                           </div>
                           {file.includes("/") && (
                             <div className="file-path">
@@ -216,6 +255,9 @@ function App() {
                 </div>
               );
             })}
+            {Object.keys(filteredFiles).length === 0 && (
+              <div className="no-results text-center text-gray-500 mt-8">No files match your search.</div>
+            )}
           </div>
 
           <button className="back-btn" onClick={() => setDirectory(null)}>
