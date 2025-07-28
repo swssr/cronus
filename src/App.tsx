@@ -18,8 +18,6 @@ import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
 import { ChevronUp, ChevronDown, Search, X } from "lucide-react";
 import { useRef } from "react";
-import { animate } from "framer-motion";
-import { useCallback } from "react";
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
@@ -80,15 +78,6 @@ function App() {
 
   const fileName = selectedFile ? selectedFile.split("/").pop() || "" : "";
   const organizedFiles = organizeFiles(availableFiles);
-  //const categoryOrder = [
-  //  "Source Code",
-  //  "Web",
-  //  "Scripts",
-  //  "Configuration",
-  //  "Documentation",
-  //  "Data",
-  //  "Other",
-  //];
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     console.log("Value: ", event.target.value);
@@ -103,7 +92,6 @@ function App() {
     ),
   );
 
-
   // Flatten filtered files for keyboard navigation
   const flatResults: { category: string; file: string }[] = [];
   Object.entries(filteredFiles).forEach(([category, files]) => {
@@ -112,14 +100,10 @@ function App() {
 
   const [focusedResult, setFocusedResult] = useState(0);
 
-  // Best match is the first result
-  const bestMatch = flatResults[0] || null;
-
   // Reset focus when searchTerm or results change
   useEffect(() => {
     setFocusedResult(0);
   }, []);
-
 
   // Helper to highlight search matches
   function highlightMatch(text: string, query: string) {
@@ -129,14 +113,18 @@ function App() {
     return (
       <>
         {text.substring(0, index)}
-        <span className="highlight">{text.substring(index, index + query.length)}</span>
+        <span className="highlight">
+          {text.substring(index, index + query.length)}
+        </span>
         {text.substring(index + query.length)}
       </>
     );
   }
 
   // Keyboard navigation handler
-  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleSearchKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
     if (flatResults.length === 0) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
@@ -153,24 +141,38 @@ function App() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  return (
-    <div className="app-container">
+  const AppHeader = () => {
+    return (
       <header className="app-header">
         {directory && (
-          <button type="button" className="back-btn" onClick={() => setDirectory(null)}>
+          <button
+            type="button"
+            className="back-btn"
+            onClick={() => setDirectory(null)}
+          >
             ← Back to Repository Selection
           </button>
         )}
         <h1>Cronus</h1>
         <p>git time machine</p>
       </header>
+    );
+  };
+
+  return (
+    <div className="app-container">
+      <AppHeader />
 
       {!directory ? (
         <div className="welcome-screen">
           <div className="welcome-content">
             <h2>Select a Repository</h2>
             <p>Choose a git repository to explore file history</p>
-            <button type="button" className="pick-directory-btn" onClick={pickDirectory}>
+            <button
+              type="button"
+              className="pick-directory-btn"
+              onClick={pickDirectory}
+            >
               📁 Pick Repository
             </button>
 
@@ -241,7 +243,7 @@ function App() {
             <h2>Choose a File</h2>
             <p>{availableFiles.length} files found</p>
             <div className="search-wrapper flex justify-center p-2 w-full">
-              <div className="relative flex w-[400px] items-center gap-1 bg-background rounded-md border border-input px-2 py-1 shadow-xs">
+              <div className="input-group flex w-[400px] items-center gap-1 bg-background rounded-md border border-input px-2 py-1 shadow-xs">
                 <Input
                   ref={inputRef}
                   className="flex-1 border-none bg-transparent focus:ring-0 focus-visible:ring-0 focus:outline-none"
@@ -264,6 +266,7 @@ function App() {
                       disabled={focusedResult === 0}
                       title="Previous result (↑)"
                       tabIndex={-1}
+                      className="nav-btn"
                     >
                       <ChevronUp className="w-4 h-4" />
                     </Button>
@@ -272,12 +275,15 @@ function App() {
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        setFocusedResult((prev) => Math.min(prev + 1, flatResults.length - 1));
+                        setFocusedResult((prev) =>
+                          Math.min(prev + 1, flatResults.length - 1),
+                        );
                         inputRef.current?.focus();
                       }}
                       disabled={focusedResult === flatResults.length - 1}
                       title="Next result (↓)"
                       tabIndex={-1}
+                      className="nav-btn"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </Button>
@@ -291,6 +297,7 @@ function App() {
                   title="Clear search"
                   tabIndex={-1}
                   style={{ visibility: searchTerm ? "visible" : "hidden" }}
+                  className="clear-btn"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -305,6 +312,7 @@ function App() {
                   disabled={flatResults.length === 0}
                   title="Jump to result (Enter)"
                   tabIndex={-1}
+                  className="search-btn"
                 >
                   <Search className="w-4 h-4" />
                 </Button>
@@ -314,36 +322,35 @@ function App() {
 
           <div className="file-categories">
             {Object.keys(filteredFiles).map((category) => {
-              if (!filteredFiles[category] || filteredFiles[category].length === 0) return null;
+              if (
+                !filteredFiles[category] ||
+                filteredFiles[category].length === 0
+              )
+                return null;
               return (
                 <div key={category} className="file-category">
                   <div className="category-header">
                     <h3>{category}</h3>
-                    <span className="category-count">{filteredFiles[category].length}</span>
+                    <span className="category-count">
+                      {filteredFiles[category].length}
+                    </span>
                   </div>
                   <div className="category-files">
                     {filteredFiles[category].map((file) => {
                       // Find the index in flatResults
-                      const idx = flatResults.findIndex(r => r.category === category && r.file === file);
+                      const idx = flatResults.findIndex(
+                        (r) => r.category === category && r.file === file,
+                      );
                       return (
-                        <button
-                          type="button"
+                        <FileCard
                           key={file}
-                          className={`file-card${idx === focusedResult ? " focused" : ""}`}
-                          onClick={() => selectFile(file)}
-                        >
-                          <div className="file-icon">{getFileIcon(file)}</div>
-                          <div className="file-details">
-                            <div className="file-name">
-                              {highlightMatch(file.split("/").pop() || "", searchTerm)}
-                            </div>
-                            {file.includes("/") && (
-                              <div className="file-path">
-                                {file.substring(0, file.lastIndexOf("/"))}/
-                              </div>
-                            )}
-                          </div>
-                        </button>
+                          file={file}
+                          idx={idx}
+                          focusedResult={focusedResult}
+                          selectFile={selectFile}
+                          searchTerm={searchTerm}
+                          highlightMatch={highlightMatch}
+                        />
                       );
                     })}
                   </div>
@@ -351,11 +358,17 @@ function App() {
               );
             })}
             {Object.keys(filteredFiles).length === 0 && (
-              <div className="no-results text-center text-gray-500 mt-8">No files match your search.</div>
+              <div className="no-results text-center text-gray-500 mt-8">
+                No files match your search.
+              </div>
             )}
           </div>
 
-          <button type="button" className="back-btn" onClick={() => setDirectory(null)}>
+          <button
+            type="button"
+            className="back-btn"
+            onClick={() => setDirectory(null)}
+          >
             ← Back to Repository Selection
           </button>
         </div>
@@ -366,4 +379,40 @@ function App() {
   );
 }
 
+function FileCard({
+  file,
+  idx,
+  focusedResult,
+  selectFile,
+  searchTerm,
+  highlightMatch,
+}: {
+  file: string;
+  idx: number;
+  focusedResult: number;
+  selectFile: (file: string) => void;
+  searchTerm: string;
+  highlightMatch: (text: string, query: string) => React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      key={file}
+      className={`file-card${idx === focusedResult ? " focused" : ""}`}
+      onClick={() => selectFile(file)}
+    >
+      <div className="file-icon">{getFileIcon(file)}</div>
+      <div className="file-details">
+        <div className="file-name">
+          {highlightMatch(file.split("/").pop() || "", searchTerm)}
+        </div>
+        {file.includes("/") && (
+          <div className="file-path">
+            {file.substring(0, file.lastIndexOf("/"))}/
+          </div>
+        )}
+      </div>
+    </button>
+  );
+}
 export default App;
