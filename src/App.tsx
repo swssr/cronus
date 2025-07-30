@@ -18,6 +18,7 @@ import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
 import { ChevronUp, ChevronDown, Search, X } from "lucide-react";
 import { useRef } from "react";
+import RecentRepoCard from "./components/RecentRepoCard";
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
@@ -177,63 +178,12 @@ function App() {
             </button>
 
             {recentRepos.length > 0 && (
-              <div className="recent-repositories">
-                <div className="recent-header">
-                  <h3>Recent Repositories</h3>
-                  <button
-                    type="button"
-                    className="clear-recents-btn"
-                    onClick={handleClearRecentRepos}
-                    title="Clear all recent repositories"
-                  >
-                    Clear All
-                  </button>
-                </div>
-
-                <div className="recent-repos-list">
-                  {recentRepos.map((repo) => (
-                    <div key={repo.path} className="recent-repo-card">
-                      <button
-                        type="button"
-                        className="recent-repo-btn"
-                        onClick={() => openRepository(repo.path)}
-                        title={`Open ${repo.path}`}
-                      >
-                        <div className="repo-icon">📁</div>
-                        <div className="repo-details">
-                          <div className="repo-name">{repo.name}</div>
-                          <div className="repo-path">{repo.path}</div>
-                          <div className="repo-meta">
-                            {repo.fileCount && (
-                              <>
-                                <Badge
-                                  className="h-5 min-w-5 rounded-full px-1 font-mono tabular-nums"
-                                  variant="outline"
-                                >
-                                  {repo.fileCount}
-                                </Badge>
-                                <span>files</span>
-                              </>
-                            )}
-                            <span>•</span>
-                            <span>
-                              {new Date(repo.lastAccessed).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        className="remove-repo-btn"
-                        onClick={() => handleRemoveRecentRepo(repo.path)}
-                        title="Remove from recent repositories"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <RecentRepoCard
+                handleClearRecentRepos={handleClearRecentRepos}
+                recentRepos={recentRepos}
+                openRepository={openRepository}
+                handleRemoveRecentRepo={handleRemoveRecentRepo}
+              />
             )}
           </div>
         </div>
@@ -415,4 +365,5 @@ function FileCard({
     </button>
   );
 }
+
 export default App;
