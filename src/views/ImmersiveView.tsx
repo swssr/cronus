@@ -4,7 +4,7 @@ import type { Commit, DiffOptions } from "../types";
 import { Editor } from "@monaco-editor/react";
 import { getFileLanguage } from "../utils/index";
 
-interface ImmersiveTimelineProps {
+interface ImmersiveViewProps {
   commits: Commit[];
   fileName: string;
   diffOptions?: DiffOptions;
@@ -20,7 +20,7 @@ interface TimelineItem {
   index: number;
 }
 
-export function ImmersiveTimeline({ commits, fileName }: ImmersiveTimelineProps) {
+export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);

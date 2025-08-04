@@ -1,25 +1,21 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence, PanInfo, useMotionValue } from "framer-motion";
-import { Commit, DiffOptions } from "../types";
+import { motion, AnimatePresence, useMotionValue } from "framer-motion";
+import type { PanInfo } from "framer-motion";
+import type { Commit, DiffOptions } from "../types";
 import { getVisibleCommits } from "../carousel-utils";
-import { CarouselCard } from "./carousel-card";
-import { CommitTimeline } from "./commit-timeline";
+import { CarouselCard } from "../components/carousel-card";
 
-type ViewMode = 'carousel' | 'timeline';
-
-interface FileHistoryCarouselProps {
+interface CarouselViewProps {
   commits: Commit[];
   fileName: string;
-  searchQuery: string;
-  viewMode: ViewMode;
   cardsToShow: 1 | 3 | 5;
 }
 
-export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, cardsToShow }: FileHistoryCarouselProps) {
+export function CarouselView({ commits, fileName, cardsToShow }: CarouselViewProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [diffOptions, setDiffOptions] = useState<DiffOptions>({
-    baseCommit: commits[0]?.hash || '', // Default to most recent commit
+    baseCommit: commits[0]?.hash || '',
     compareMode: 'current',
     showLineNumbers: true,
     contextLines: 3
@@ -36,17 +32,16 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
     mass: 0.8
   };
 
-  // Update diff options when commits change (set to most recent)
+  // Update diff options when commits change
   useEffect(() => {
     if (commits.length > 0) {
       setDiffOptions(prev => ({
         ...prev,
-        baseCommit: commits[0].hash // Most recent commit as default
+        baseCommit: commits[0].hash
       }));
     }
   }, [commits]);
 
-  // Use commits directly since filtering is done in parent
   const filteredCommits = commits;
 
   const handleDiffChange = useCallback((newDiffOptions: DiffOptions) => {
@@ -67,40 +62,41 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
       );
     }
     
-    // Shorter animation duration for snappier feel
     setTimeout(() => setIsAnimating(false), 400);
   }, [filteredCommits.length, isAnimating]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't interfere when typing in search input (check for any input element)
       if (document.activeElement?.tagName.toLowerCase() === 'input') {
         return;
       }
 
       switch (e.key) {
         case 'ArrowLeft':
-        case 'h':
+        case 'h': {
           e.preventDefault();
           if (currentIndex > 0) navigate('prev');
           break;
+        }
         case 'ArrowRight':
-        case 'l':
+        case 'l': {
           e.preventDefault();
           if (currentIndex < filteredCommits.length - 1) navigate('next');
           break;
-        case 'Home':
+        }
+        case 'Home': {
           e.preventDefault();
           navigate(0);
           break;
-        case 'End':
+        }
+        case 'End': {
           e.preventDefault();
           navigate(filteredCommits.length - 1);
           break;
+        }
         case 'd': {
           e.preventDefault();
-          // Cycle through diff modes
           const modes: Array<'current' | 'previous' | 'custom'> = ['current', 'previous', 'custom'];
           const currentModeIndex = modes.indexOf(diffOptions.compareMode);
           const nextMode = modes[(currentModeIndex + 1) % modes.length];
@@ -114,7 +110,7 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, filteredCommits.length, navigate, diffOptions.compareMode]);
 
-  const handleDragEnd = useCallback((_: any, info: PanInfo) => {
+  const handleDragEnd = useCallback((_: unknown, info: PanInfo) => {
     const { offset, velocity } = info;
     if (Math.abs(offset.x) > 50 || Math.abs(velocity.x) > 300) {
       navigate(offset.x > 0 ? 'prev' : 'next');
@@ -135,19 +131,10 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
     return () => document.removeEventListener('wheel', handleWheel);
   }, [handleWheel]);
 
-  // Reset current index when commits change (e.g., due to search)
+  // Reset current index when commits change
   useEffect(() => {
     setCurrentIndex(0);
-  }, [commits]);
-
-    const timeline = (
-        <CommitTimeline 
-          commits={commits}
-          fileName={fileName}
-          diffOptions={diffOptions}
-          onDiffChange={handleDiffChange}
-        />
-    );
+  }, [commits.length]);
 
   if (commits.length === 0) {
     return (
@@ -158,17 +145,15 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
     );
   }
 
-    const noResults = (
+  if (filteredCommits.length === 0) {
+    return (
       <div className="carousel-container">
         <div className="no-results">
-          <p>No commits found matching "{searchQuery}"</p>
-          <p>Try a different search term or clear your search</p>
+          <p>No commits found</p>
+          <p>Try adjusting your search or check back later</p>
         </div>
       </div>
     );
-
-  if (filteredCommits.length === 0) {
-    return noResults;
   }
 
   const visibleCommits = getVisibleCommits(filteredCommits, currentIndex, cardsToShow);
@@ -220,7 +205,7 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
     return { ...positions[position as keyof typeof positions], transition: spring };
   };
 
-  const carousel = (
+  return (
     <div className="carousel-container">
       <div 
         ref={constraintsRef}
@@ -330,12 +315,4 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
       </div>
     </div>
   );
-
-
-  return (
-    <div className="view-container">
-      {viewMode === 'timeline' ? timeline : carousel}
-    </div>
-  )
 }
-
