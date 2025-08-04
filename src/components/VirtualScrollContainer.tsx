@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 
 interface VirtualScrollContainerProps {
   items: any[];
@@ -19,6 +19,7 @@ export function VirtualScrollContainer({
 }: VirtualScrollContainerProps) {
   const [scrollTop, setScrollTop] = useState(0);
   const scrollElementRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>();
 
   const getItemHeight = useCallback((index: number) => {
     return typeof itemHeight === 'function' ? itemHeight(index) : itemHeight;
@@ -35,6 +36,8 @@ export function VirtualScrollContainer({
   const totalHeight = itemOffsets[items.length] || 0;
 
   const visibleRange = useMemo(() => {
+    if (items.length === 0) return { start: 0, end: 0, offsetY: 0 };
+
     let start = 0;
     let end = items.length - 1;
 
@@ -79,14 +82,34 @@ export function VirtualScrollContainer({
   }, [items, visibleRange.start, visibleRange.end]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(e.currentTarget.scrollTop);
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
+    
+    rafRef.current = requestAnimationFrame(() => {
+      setScrollTop(e.currentTarget.scrollTop);
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
   }, []);
 
   return (
     <div
       ref={scrollElementRef}
-      className={`overflow-auto ${className}`}
-      style={{ height: containerHeight }}
+      className={`virtual-scroll-container ${className}`}
+      style={{ 
+        height: containerHeight,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        scrollBehavior: 'smooth',
+        WebkitOverflowScrolling: 'touch'
+      }}
       onScroll={handleScroll}
     >
       <div style={{ height: totalHeight, position: 'relative' }}>
@@ -104,7 +127,7 @@ export function VirtualScrollContainer({
             const actualIndex = visibleRange.start + index;
             return (
               <div
-                key={`item-${actualIndex}`}
+                key={`item-${actualIndex}-${item.hash || actualIndex}`}
                 style={{ 
                   height: getItemHeight(actualIndex),
                   minHeight: getItemHeight(actualIndex),

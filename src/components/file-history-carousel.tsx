@@ -28,7 +28,13 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
   const constraintsRef = useRef<HTMLDivElement>(null);
   const dragX = useMotionValue(0);
 
-  const spring = { type: "spring" as const, stiffness: 300, damping: 30 };
+  // Apple-like spring animation
+  const spring = { 
+    type: "spring" as const, 
+    stiffness: 400, 
+    damping: 40,
+    mass: 0.8
+  };
 
   // Update diff options when commits change (set to most recent)
   useEffect(() => {
@@ -61,7 +67,8 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
       );
     }
     
-    setTimeout(() => setIsAnimating(false), 600);
+    // Shorter animation duration for snappier feel
+    setTimeout(() => setIsAnimating(false), 400);
   }, [filteredCommits.length, isAnimating]);
 
   // Keyboard shortcuts
@@ -91,7 +98,7 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
           e.preventDefault();
           navigate(filteredCommits.length - 1);
           break;
-        case 'd':
+        case 'd': {
           e.preventDefault();
           // Cycle through diff modes
           const modes: Array<'current' | 'previous' | 'custom'> = ['current', 'previous', 'custom'];
@@ -99,6 +106,7 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
           const nextMode = modes[(currentModeIndex + 1) % modes.length];
           setDiffOptions(prev => ({ ...prev, compareMode: nextMode }));
           break;
+        }
       }
     };
 
@@ -108,7 +116,7 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
 
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
     const { offset, velocity } = info;
-    if (Math.abs(offset.x) > 50 || Math.abs(velocity.x) > 400) {
+    if (Math.abs(offset.x) > 50 || Math.abs(velocity.x) > 300) {
       navigate(offset.x > 0 ? 'prev' : 'next');
     }
     dragX.set(0);
@@ -116,7 +124,7 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
 
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    if (isAnimating || Math.abs(e.deltaY) < 10) return;
+    if (isAnimating || Math.abs(e.deltaY) < 15) return;
     
     if (e.deltaY > 0 && currentIndex < filteredCommits.length - 1) navigate('next');
     else if (e.deltaY < 0 && currentIndex > 0) navigate('prev');
@@ -130,7 +138,7 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
   // Reset current index when commits change (e.g., due to search)
   useEffect(() => {
     setCurrentIndex(0);
-  }, [commits.length]);
+  }, [commits]);
 
     const timeline = (
         <CommitTimeline 
@@ -167,11 +175,47 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
 
   const getPositionProps = (position: string) => {
     const positions = {
-      center: { x: 0, y: 0, z: 0, scale: 1, rotateY: 0, opacity: 1 },
-      left: { x: -300, y: 20, z: -150, scale: 0.85, opacity: 0.75 },
-      right: { x: 300, y: 20, z: -150, scale: 0.85, opacity: 0.75 },
-      'far-left': { x: -500, y: 40, z: -300, scale: 0.7, opacity: 0.4 },
-      'far-right': { x: 500, y: 40, z: -300, scale: 0.7, opacity: 0.4 }
+      center: { 
+        x: 0, 
+        y: 0, 
+        z: 0, 
+        scale: 1, 
+        rotateY: 0, 
+        opacity: 1,
+        filter: 'blur(0px)'
+      },
+      left: { 
+        x: -280, 
+        y: 10, 
+        z: -100, 
+        scale: 0.9, 
+        opacity: 0.8,
+        filter: 'blur(0.5px)'
+      },
+      right: { 
+        x: 280, 
+        y: 10, 
+        z: -100, 
+        scale: 0.9, 
+        opacity: 0.8,
+        filter: 'blur(0.5px)'
+      },
+      'far-left': { 
+        x: -480, 
+        y: 20, 
+        z: -200, 
+        scale: 0.75, 
+        opacity: 0.5,
+        filter: 'blur(1px)'
+      },
+      'far-right': { 
+        x: 480, 
+        y: 20, 
+        z: -200, 
+        scale: 0.75, 
+        opacity: 0.5,
+        filter: 'blur(1px)'
+      }
     };
     return { ...positions[position as keyof typeof positions], transition: spring };
   };
@@ -181,9 +225,10 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
       <div 
         ref={constraintsRef}
         className="carousel-viewport"
-        style={{ perspective: 1200, transformStyle: "preserve-3d" }}
+        style={{ perspective: 1400, transformStyle: "preserve-3d" }}
       >
         <button
+          type="button"
           className="carousel-nav prev"
           onClick={() => navigate('prev')}
           disabled={filteredCommits.length <= 1 || currentIndex === 0}
@@ -195,8 +240,8 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
         <motion.div
           className="carousel-track"
           drag="x"
-          dragConstraints={{ left: -300, right: 300 }}
-          dragElastic={0.1}
+          dragConstraints={{ left: -200, right: 200 }}
+          dragElastic={0.05}
           onDragEnd={handleDragEnd}
           style={{ x: dragX }}
         >
@@ -210,20 +255,26 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
                   key={`${index}-${position}-${currentIndex}`}
                   className={`carousel-slide ${position}`}
                   initial={{ 
-                    x: position.includes('left') ? -800 : 800,
+                    x: position.includes('left') ? -600 : 600,
                     opacity: 0,
-                    scale: 0.5
+                    scale: 0.6,
+                    filter: 'blur(2px)'
                   }}
                   animate={positionProps}
                   exit={{ 
-                    x: position.includes('left') ? -800 : 800,
+                    x: position.includes('left') ? -600 : 600,
                     opacity: 0,
-                    scale: 0.5
+                    scale: 0.6,
+                    filter: 'blur(2px)'
                   }}
                   onClick={isClickable ? () => navigate(index) : undefined}
                   whileHover={isClickable ? { 
-                    scale: positionProps.scale * 1.05,
-                    y: positionProps.y - 10
+                    scale: positionProps.scale * 1.02,
+                    y: positionProps.y - 5,
+                    filter: 'blur(0px)'
+                  } : {}}
+                  whileTap={isClickable ? { 
+                    scale: positionProps.scale * 0.98 
                   } : {}}
                   style={{ 
                     cursor: isClickable ? 'pointer' : 'default',
@@ -243,6 +294,7 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
         </motion.div>
         
         <button
+          type="button"
           className="carousel-nav next"
           onClick={() => navigate('next')}
           disabled={filteredCommits.length <= 1 || currentIndex === filteredCommits.length - 1}
@@ -254,12 +306,13 @@ export function FileHistoryCarousel({ commits, fileName, searchQuery, viewMode, 
       
       <div className="carousel-indicators">
         <div className="timeline-dots">
-          {filteredCommits.slice(0, 15).map((_, index) => (
+          {filteredCommits.slice(0, 15).map((commit, index) => (
             <button
-              key={index}
+              key={`dot-${commit.hash}-${index}`}
+              type="button"
               className={`timeline-dot ${index === currentIndex ? 'active' : ''}`}
               onClick={() => navigate(index)}
-              title={`Commit ${filteredCommits[index].hash.slice(0, 8)}`}
+              title={`Commit ${commit.hash.slice(0, 8)}`}
             />
           ))}
           {filteredCommits.length > 15 && (
