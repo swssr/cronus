@@ -13,6 +13,7 @@ import {
   clearRecentRepositories,
 } from "./utils/index";
 import { FileHistoryCarousel } from "./components/file-history-carousel";
+import { ImmersiveTimeline } from "./components/immersive-timeline";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
 import { ChevronUp, ChevronDown, Search, X } from "lucide-react";
@@ -29,7 +30,7 @@ function App() {
 
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [fileHistorySearchQuery, setFileHistorySearchQuery] = useState<string>("");
-  const [viewMode, setViewMode] = useState<'carousel' | 'timeline'>('carousel');
+  const [viewMode, setViewMode] = useState<'carousel' | 'timeline' | 'immersive'>('carousel');
   const [cardsToShow, setCardsToShow] = useState<1 | 3 | 5>(3);
 
   // Load recent repositories on component mount
@@ -321,6 +322,11 @@ function App() {
           </div>
 
         </div>
+      ) : viewMode === 'immersive' ? (
+        <ImmersiveTimeline 
+          commits={filteredCommits} 
+          fileName={fileName}
+        />
       ) : (
         <FileHistoryCarousel 
           commits={filteredCommits} 

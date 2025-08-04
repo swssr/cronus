@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 
-type ViewMode = 'carousel' | 'timeline';
+type ViewMode = 'carousel' | 'timeline' | 'immersive';
 
 interface HeaderProps {
   title?: string;
@@ -67,7 +67,7 @@ export default function AppHeader({
             ? `${searchQuery 
                 ? `${filteredCommits.length} of ${commits.length} commits` 
                 : `${commits.length} commits`
-              } • ${viewMode === 'carousel' ? 'Carousel' : 'Timeline'} view`
+              } • ${viewMode === 'carousel' ? 'Carousel' : viewMode === 'timeline' ? 'Timeline' : 'Immersive'} view`
             : directory 
             ? `Exploring git history • ${directory}` 
             : subtext
@@ -104,16 +104,23 @@ export default function AppHeader({
               <button 
                 className={`view-mode-btn ${viewMode === 'carousel' ? 'active' : ''}`}
                 onClick={() => onViewModeChange?.('carousel')}
-                title="Carousel view (t)"
+                title="Carousel view"
               >
                 🎠
               </button>
               <button 
                 className={`view-mode-btn ${viewMode === 'timeline' ? 'active' : ''}`}
                 onClick={() => onViewModeChange?.('timeline')}
-                title="Timeline view (t)"
+                title="Timeline view"
               >
                 📈
+              </button>
+              <button 
+                className={`view-mode-btn ${viewMode === 'immersive' ? 'active' : ''}`}
+                onClick={() => onViewModeChange?.('immersive')}
+                title="Immersive timeline view"
+              >
+                🌊
               </button>
             </div>
             
