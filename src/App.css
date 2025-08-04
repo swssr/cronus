@@ -16,30 +16,53 @@ body {
 
 /* Header */
 .app-header {
-  text-align: center;
-  padding: 3rem 2rem 2rem;
+  padding: 1.5rem 2rem;
   background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #30363d;
+  backdrop-filter: blur(10px);
 }
 
 .control-container {
   display: flex;
+  align-items: center;
+  min-width: 120px;
+}
+
+.control-container:first-child {
   justify-content: flex-start;
+}
+
+.control-container:last-child {
+  justify-content: flex-end;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-content {
+  text-align: center;
+  flex: 1;
 }
 
 .app-header h1 {
   color: #f0f6fc;
-  font-size: 2.5rem;
+  font-size: 1.8rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   letter-spacing: -0.02em;
 }
 
 .app-header p {
   color: #7d8590;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   font-weight: 400;
+  margin: 0;
 }
 
 /* Welcome Screen */
@@ -351,21 +374,23 @@ body {
 }
 
 .back-btn {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.05);
   color: #7d8590;
   border: 1px solid #30363d;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
   transition: all 0.2s ease;
-  display: block;
-  margin: 0 auto;
+  backdrop-filter: blur(10px);
 }
 
 .back-btn:hover {
   color: #e6edf3;
   border-color: #484f58;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
 }
 
 /* Carousel Styles - Glass UI with 3-card layout */
@@ -1087,8 +1112,19 @@ body {
 .view-header {
   padding: 2rem;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  background: rgba(22, 27, 34, 0.8);
+  border-bottom: 1px solid #30363d;
+  backdrop-filter: blur(10px);
+}
+
+.view-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .view-toggle {
@@ -1191,6 +1227,36 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+}
+
+.timeline-items-virtual {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  overflow-y: auto;
+  max-height: 600px;
+}
+
+.timeline-items-virtual::-webkit-scrollbar {
+  width: 8px;
+}
+
+.timeline-items-virtual::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.timeline-items-virtual::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.timeline-items-virtual::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .timeline-item {
@@ -1387,6 +1453,21 @@ body {
 
 /* Mobile Timeline Styles */
 @media (max-width: 768px) {
+  .view-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem;
+  }
+
+  .view-controls {
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .search-container {
+    max-width: 100%;
+  }
+
   .timeline-content {
     padding-left: 4rem;
   }
@@ -1439,6 +1520,22 @@ body {
   .view-mode-btn {
     padding: 0.5rem 1rem;
     font-size: 0.8rem;
+  }
+
+  .app-header {
+    padding: 1rem;
+  }
+
+  .app-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .app-header p {
+    font-size: 0.8rem;
+  }
+
+  .header-content {
+    margin: 0 1rem;
   }
 }
 
@@ -1546,9 +1643,9 @@ body {
 
 .search-container {
   position: relative;
-  max-width: 600px;
+  max-width: 400px;
   width: 100%;
-  margin: 0 auto 2rem;
+  margin: 0;
 }
 
 .search-input {
@@ -1556,9 +1653,10 @@ body {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: rgba(255, 255, 255, 0.9);
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  font-size: 0.9rem;
+  padding: 0.75rem 1rem;
+  padding-right: 2.5rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
   backdrop-filter: blur(10px);
   transition: all 0.2s ease;
 }
@@ -1576,17 +1674,17 @@ body {
 
 .clear-search {
   position: absolute;
-  right: 1rem;
+  right: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
   background: rgba(255, 255, 255, 0.1);
   border: none;
   color: rgba(255, 255, 255, 0.7);
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   display: flex;
   align-items: center;
   justify-content: center;

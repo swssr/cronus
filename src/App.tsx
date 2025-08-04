@@ -13,12 +13,12 @@ import {
   clearRecentRepositories,
 } from "./utils/index";
 import { FileHistoryCarousel } from "./components/file-history-carousel";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
 import { ChevronUp, ChevronDown, Search, X } from "lucide-react";
 import { useRef } from "react";
-import RecentRepoCard from "./components/RecentRepoCard";
+import RecentRepoCard from "./components/RecentReposList";
+import AppHeader from "./components/AppHeader";
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
@@ -28,6 +28,9 @@ function App() {
   const [recentRepos, setRecentRepos] = useState<RecentRepository[]>([]);
 
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [fileHistorySearchQuery, setFileHistorySearchQuery] = useState<string>("");
+  const [viewMode, setViewMode] = useState<'carousel' | 'timeline'>('carousel');
+  const [cardsToShow, setCardsToShow] = useState<1 | 3 | 5>(3);
 
   // Load recent repositories on component mount
   useEffect(() => {
@@ -79,6 +82,15 @@ function App() {
 
   const fileName = selectedFile ? selectedFile.split("/").pop() || "" : "";
   const organizedFiles = organizeFiles(availableFiles);
+
+  // Filter commits for file history search
+  const filteredCommits = fileHistorySearchQuery.trim() 
+    ? commits.filter(commit => 
+        commit.message.toLowerCase().includes(fileHistorySearchQuery.toLowerCase()) ||
+        commit.author.toLowerCase().includes(fileHistorySearchQuery.toLowerCase()) ||
+        commit.content.toLowerCase().includes(fileHistorySearchQuery.toLowerCase())
+      )
+    : commits;
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     console.log("Value: ", event.target.value);
@@ -142,27 +154,21 @@ function App() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const AppHeader = () => {
-    return (
-      <header className="app-header">
-        {directory && (
-          <button
-            type="button"
-            className="back-btn"
-            onClick={() => setDirectory(null)}
-          >
-            ← Back to Repository Selection
-          </button>
-        )}
-        <h1>Cronus</h1>
-        <p>git time machine</p>
-      </header>
-    );
-  };
-
   return (
     <div className="app-container">
-      <AppHeader />
+      <AppHeader
+        setDirectory={(path) => setDirectory(path!)}
+        directory={directory!}
+        fileName={selectedFile ? fileName : undefined}
+        searchQuery={fileHistorySearchQuery}
+        onSearchChange={setFileHistorySearchQuery}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        cardsToShow={cardsToShow}
+        onCardsToShowChange={setCardsToShow}
+        commits={commits}
+        filteredCommits={filteredCommits}
+      />
 
       {!directory ? (
         <div className="welcome-screen">
@@ -314,16 +320,15 @@ function App() {
             )}
           </div>
 
-          <button
-            type="button"
-            className="back-btn"
-            onClick={() => setDirectory(null)}
-          >
-            ← Back to Repository Selection
-          </button>
         </div>
       ) : (
-        <FileHistoryCarousel commits={commits} fileName={fileName} />
+        <FileHistoryCarousel 
+          commits={filteredCommits} 
+          fileName={fileName}
+          searchQuery={fileHistorySearchQuery}
+          viewMode={viewMode}
+          cardsToShow={cardsToShow}
+        />
       )}
     </div>
   );

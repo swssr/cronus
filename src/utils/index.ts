@@ -12,7 +12,7 @@ export function tryParse<T>(value: string): {
     const _value: T = JSON.parse(value);
     if (!_value) return { data: null, error: null };
     return { data: _value, error: null };
-  } catch (error: Partial<{ message: string }>) {
+  } catch (error: any) {
     return { data: null, error: String(error?.message) };
   }
 }
@@ -24,8 +24,8 @@ export function getRecentRepositories(): RecentRepository[] {
 
     const repos: RecentRepository[] = JSON.parse(stored);
     // Sort by lastAccessed date (most recent first)
-    return repos.toSorted(
-      (a, b) =>
+    return repos.sort(
+      (a: RecentRepository, b: RecentRepository) =>
         new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime(),
     );
   } catch (error) {
