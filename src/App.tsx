@@ -22,7 +22,7 @@ import { CarouselView, ImmersiveView, EnhancedImmersiveView } from "./views";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
-import { CaretUp, CaretDown, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { CaretUp, CaretDown, MagnifyingGlass, X, Moon, Sun } from "@phosphor-icons/react";
 import { useRef } from "react";
 import RecentRepoCard from "./components/RecentReposList";
 import AppHeader from "./components/AppHeader";
@@ -31,8 +31,72 @@ import { getFileTypeColor } from "./utils/colorUtils";
 import { FileIcon } from "./components/FileIcon";
 import FileSelectionMode from "./components/FileSelectionMode";
 import Notification from "./components/Notification";
+import { ThemeToggle } from "./components/ThemeToggle";
+import React from "react";
 
-function App() {
+// Theme context and provider
+type Theme = 'light' | 'dark' | 'system';
+
+interface ThemeContextType {
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  isDark: boolean;
+}
+
+const ThemeContext = React.createContext<ThemeContextType | undefined>(undefined);
+
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem('theme');
+    return (saved as Theme) || 'system';
+  });
+
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    
+    const updateTheme = () => {
+      const isDarkMode = 
+        theme === 'dark' || 
+        (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      
+      setIsDark(isDarkMode);
+      root.classList.toggle('dark', isDarkMode);
+    };
+
+    updateTheme();
+
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      mediaQuery.addEventListener('change', updateTheme);
+      return () => mediaQuery.removeEventListener('change', updateTheme);
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme, isDark }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+function useTheme() {
+  const context = React.useContext(ThemeContext);
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+}
+
+
+
+function AppContent() {
+  const { isDark, setTheme } = useTheme();
   const [directory, setDirectory] = useState<string | null>(null);
   const [availableFiles, setAvailableFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -198,6 +262,11 @@ function App() {
 
   return (
     <div className="app-container">
+      <ThemeToggle 
+        isDark={isDark}
+        onToggle={() => setTheme(isDark ? 'light' : 'dark')}
+        className="fixed top-4 right-4 z-50"
+      />
       {notification && (
         <Notification
           message={notification.message}
@@ -265,6 +334,14 @@ function App() {
         </ErrorBoundary>
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 

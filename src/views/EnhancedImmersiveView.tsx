@@ -243,27 +243,27 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
 
   return (
     <motion.div 
-      className="enhanced-immersive-timeline bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen"
+      className="enhanced-immersive-timeline bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
       {/* Enhanced Header with GitButler-like Controls */}
       <motion.div 
-        className="enhanced-header flex justify-between items-center p-6 bg-black/20 backdrop-blur-md border-b border-white/10"
+        className="enhanced-header flex justify-between items-center p-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700"
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2 }}
       >
         <div className="header-left flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
             {fileName ? `${fileName} History` : 'Branch Timeline'}
           </h1>
-          <div className="commit-count text-purple-300 bg-purple-500/20 px-3 py-1 rounded-full border border-purple-500/30">
+          <div className="commit-count text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20 px-3 py-1 rounded-full border border-blue-200 dark:border-blue-700">
             {commits.length} commits
           </div>
           {selectedCommits.size > 0 && (
-            <div className="selected-count text-blue-300 bg-blue-500/20 px-3 py-1 rounded-full border border-blue-500/30">
+            <div className="selected-count text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/20 px-3 py-1 rounded-full border border-green-200 dark:border-green-700">
               {selectedCommits.size} selected
             </div>
           )}
@@ -272,7 +272,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
         <div className="header-controls flex items-center gap-3">
           <motion.button
             onClick={toggleViewMode}
-            className="view-mode-toggle px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white hover:bg-white/15 transition-all duration-300 flex items-center gap-2"
+            className="view-mode-toggle px-4 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all duration-300 flex items-center gap-2"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -286,8 +286,8 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
             onClick={() => setShowFullHistory(!showFullHistory)}
             className={`history-toggle px-4 py-2 backdrop-blur-sm border rounded-xl transition-all duration-300 flex items-center gap-2 ${
               showFullHistory 
-                ? 'bg-green-500/20 border-green-500/30 text-green-200' 
-                : 'bg-white/10 border-white/20 text-white hover:bg-white/15'
+                ? 'bg-green-100 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300' 
+                : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
             }`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -298,7 +298,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
           
           <motion.button
             onClick={() => setShowStats(!showStats)}
-            className="stats-toggle px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white hover:bg-white/15 transition-all duration-300 flex items-center gap-2"
+            className="stats-toggle px-4 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all duration-300 flex items-center gap-2"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -350,70 +350,83 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
       </AnimatePresence>
 
       {/* Enhanced Scrubber with Commit Dots */}
-      <motion.div
-        className="enhanced-scrubber fixed right-6 top-1/2 transform -translate-y-1/2 z-20"
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <div className="scrubber-container bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-4">
-          <div className="scrubber-header text-center mb-4">
-            <div className="active-commit-indicator text-white">
-              <span className="commit-index text-2xl font-bold">{activeIndex + 1}</span>
-              <span className="commit-total text-sm opacity-70">/ {commits.length}</span>
-            </div>
-          </div>
-          
-          <div className="scrubber-track relative h-64 w-4 mx-auto" onClick={handleScrubberClick}>
-            <div className="track-line absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-white/20 rounded-full" />
-            
-            <motion.div
-              className="scrubber-progress absolute left-1/2 transform -translate-x-1/2 w-1 bg-gradient-to-b from-purple-400 to-blue-400 rounded-full origin-top"
-              style={{
-                scaleY: scrollProgress
-              }}
-            />
-            
-            {/* Commit dots along the scrubber */}
-            {commits.map((commit, index) => {
-              const position = (index / (commits.length - 1)) * 100;
-              const authorColor = getAuthorColor(commit.author);
-              const isActive = index === activeIndex;
-              const isSelected = selectedCommits.has(commit.hash);
-              
-              return (
                 <motion.div
-                  key={commit.hash}
-                  className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer"
-                  style={{ top: `${position}%` }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    scrollToItem(index);
+            className="enhanced-scrubber fixed right-6 top-1/2 transform -translate-y-1/2 z-20"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="scrubber-container bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+              <div className="scrubber-header text-center mb-4">
+                <div className="active-commit-indicator text-slate-900 dark:text-slate-100">
+                  <span className="commit-index text-2xl font-bold">{activeIndex + 1}</span>
+                  <span className="commit-total text-sm opacity-70">/ {commits.length}</span>
+                </div>
+              </div>
+              
+              <button 
+                type="button"
+                className="scrubber-track relative h-64 w-4 mx-auto cursor-pointer" 
+                onClick={handleScrubberClick}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleScrubberClick(e as any);
+                  }
+                }}
+                aria-label="Timeline scrubber"
+              >
+                <div className="track-line absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-slate-300 dark:bg-slate-600 rounded-full" />
+                
+                <motion.div
+                  className="scrubber-progress absolute left-1/2 transform -translate-x-1/2 w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full origin-top"
+                  style={{
+                    scaleY: scrollProgress
                   }}
-                  whileHover={{ scale: 1.5 }}
-                >
-                  <div 
-                    className={`w-3 h-3 rounded-full border-2 transition-all duration-200 ${
-                      isActive ? 'border-white shadow-lg' : 'border-white/50'
-                    } ${isSelected ? 'ring-2 ring-blue-400' : ''}`}
-                    style={{ 
-                      backgroundColor: isActive ? authorColor : adjustColorOpacity(authorColor, 0.6),
-                      boxShadow: isActive ? `0 0 12px ${adjustColorOpacity(authorColor, 0.6)}` : 'none'
-                    }}
-                  />
-                </motion.div>
-              );
-            })}
-            
-            <motion.div
-              className="scrubber-thumb absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 border-purple-400"
-              style={{
-                y: thumbTransform
-              }}
-            />
-          </div>
-        </div>
-      </motion.div>
+                />
+                
+                {/* Commit dots along the scrubber */}
+                {commits.map((commit, index) => {
+                  const position = (index / (commits.length - 1)) * 100;
+                  const authorColor = getAuthorColor(commit.author);
+                  const isActive = index === activeIndex;
+                  const isSelected = selectedCommits.has(commit.hash);
+                  
+                  return (
+                    <motion.button
+                      key={commit.hash}
+                      type="button"
+                      className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer"
+                      style={{ top: `${position}%` }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        scrollToItem(index);
+                      }}
+                      whileHover={{ scale: 1.5 }}
+                      aria-label={`Go to commit ${index + 1}`}
+                    >
+                      <div 
+                        className={`w-3 h-3 rounded-full border-2 transition-all duration-200 ${
+                          isActive ? 'border-slate-900 dark:border-white shadow-lg' : 'border-slate-400 dark:border-slate-500'
+                        } ${isSelected ? 'ring-2 ring-blue-400' : ''}`}
+                        style={{ 
+                          backgroundColor: isActive ? authorColor : adjustColorOpacity(authorColor, 0.6),
+                          boxShadow: isActive ? `0 0 12px ${adjustColorOpacity(authorColor, 0.6)}` : 'none'
+                        }}
+                      />
+                    </motion.button>
+                  );
+                })}
+                
+                <motion.div
+                  className="scrubber-thumb absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 border-blue-400"
+                  style={{
+                    y: thumbTransform
+                  }}
+                />
+              </button>
+            </div>
+          </motion.div>
 
       {/* Main Timeline Content */}
       <main 
@@ -605,7 +618,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
                                 )}
                               </motion.div>
                             </div>
-                            <h3 className="commit-message-enhanced text-xl font-semibold text-white mb-3 leading-tight">
+                            <h3 className="commit-message-enhanced text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3 leading-tight">
                               {commit.message}
                             </h3>
                           </div>
@@ -642,7 +655,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
                             {commit.hash.slice(0, 7)}
                           </motion.button>
                           
-                          <div className="commit-time text-white/60 text-sm">
+                          <div className="commit-time text-slate-500 dark:text-slate-400 text-sm">
                             {date.toLocaleDateString('en', { 
                               month: 'short', 
                               day: 'numeric',
@@ -655,7 +668,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
                         {stats.files > 0 && (
                           <div className="commit-stats-enhanced flex items-center gap-3 flex-wrap">
                             <motion.span 
-                              className="files-count-enhanced px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white/90 text-sm font-medium flex items-center gap-1"
+                              className="files-count-enhanced px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-slate-700 dark:text-slate-300 text-sm font-medium flex items-center gap-1"
                               whileHover={{ scale: 1.05 }}
                             >
                               📁 {stats.files} file{stats.files > 1 ? 's' : ''}
@@ -710,7 +723,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
                     <AnimatePresence>
                       {(showFullHistory || isActive) && commit.content && (
                         <motion.div
-                          className="enhanced-code-preview bg-black/40 backdrop-blur-sm border border-white/10 rounded-xl mt-4 overflow-hidden"
+                          className="enhanced-code-preview bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl mt-4 overflow-hidden"
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ 
                             height: showFullHistory ? "300px" : "200px", 
@@ -719,12 +732,12 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.4, ease: "easeInOut" }}
                         >
-                          <div className="code-header flex items-center justify-between p-3 bg-black/20 border-b border-white/10">
+                          <div className="code-header flex items-center justify-between p-3 bg-white/90 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                               <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                              <span className="ml-3 text-white/70 text-sm font-mono">{fileName}</span>
+                              <span className="ml-3 text-slate-600 dark:text-slate-400 text-sm font-mono">{fileName}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <motion.button
@@ -732,7 +745,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
                                   e.stopPropagation();
                                   handleCommitAction('copy-hash', commit);
                                 }}
-                                className="text-white/50 hover:text-white text-xs font-mono px-2 py-1 bg-white/10 rounded"
+                                className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-xs font-mono px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded"
                                 whileHover={{ scale: 1.05 }}
                               >
                                 {commit.hash.slice(0, 7)}
@@ -795,7 +808,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
                       if (commit) handleCommitAction('cherry-pick', commit);
                     });
                   }}
-                  className="px-4 py-2 bg-green-500/20 border border-green-500/30 text-green-200 rounded-xl hover:bg-green-500/30 transition-all duration-200 flex items-center gap-2"
+                  className="px-4 py-2 bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 rounded-xl hover:bg-green-200 dark:hover:bg-green-800/30 transition-all duration-200 flex items-center gap-2"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -808,7 +821,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
                     const hashesToCopy = Array.from(selectedCommits).join('\n');
                     navigator.clipboard.writeText(hashesToCopy);
                   }}
-                  className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 text-blue-200 rounded-xl hover:bg-blue-500/30 transition-all duration-200 flex items-center gap-2"
+                  className="px-4 py-2 bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-800/30 transition-all duration-200 flex items-center gap-2"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -818,7 +831,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
                 
                 <motion.button
                   onClick={() => setSelectedCommits(new Set())}
-                  className="px-4 py-2 bg-red-500/20 border border-red-500/30 text-red-200 rounded-xl hover:bg-red-500/30 transition-all duration-200"
+                  className="px-4 py-2 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-xl hover:bg-red-200 dark:hover:bg-red-800/30 transition-all duration-200"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -837,7 +850,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.5 }}
       >
-        <div className="hints-container bg-black/20 backdrop-blur-sm border border-white/10 rounded-xl p-3 text-white/70 text-sm">
+        <div className="hints-container bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-700 dark:text-slate-300 text-sm">
           <div>Click commits to select • Hover for actions</div>
           <div>Scroll to explore • {viewMode} view active</div>
         </div>
