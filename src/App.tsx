@@ -13,6 +13,7 @@ import {
   clearRecentRepositories,
 } from "./utils/index";
 import { CarouselView, ImmersiveView } from "./views";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
 import { ChevronUp, ChevronDown, Search, X } from "lucide-react";
@@ -29,7 +30,7 @@ function App() {
 
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [fileHistorySearchQuery, setFileHistorySearchQuery] = useState<string>("");
-  const [viewMode, setViewMode] = useState<'carousel' | 'immersive'>('carousel');
+  const [viewMode, setViewMode] = useState<'carousel' | 'immersive'>('immersive');
   const [cardsToShow, setCardsToShow] = useState<1 | 3 | 5>(3);
 
   // Load recent repositories on component mount
@@ -321,18 +322,26 @@ function App() {
           </div>
 
         </div>
-      ) : viewMode === 'immersive' ? (
-        <ImmersiveView 
-          commits={filteredCommits} 
-          fileName={fileName}
-        />
-      ) : (
-        <CarouselView 
-          commits={filteredCommits} 
-          fileName={fileName}
-          cardsToShow={cardsToShow}
-        />
-      )}
+              ) : (
+          <ErrorBoundary 
+            onError={(error, errorInfo) => {
+              console.error('View Error:', error, errorInfo);
+            }}
+          >
+            {viewMode === 'immersive' ? (
+              <ImmersiveView 
+                commits={filteredCommits} 
+                fileName={fileName}
+              />
+            ) : (
+              <CarouselView 
+                commits={filteredCommits} 
+                fileName={fileName}
+                cardsToShow={cardsToShow}
+              />
+            )}
+          </ErrorBoundary>
+        )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import type { Commit } from "../types";
 import { Editor } from "@monaco-editor/react";
 import { getFileLanguage } from "../utils/index";
 import { useMomentumScroll } from "../hooks/useMomentumScroll";
+import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
 import { CardActions } from "../components/CardActions";
 
 interface ImmersiveViewProps {
@@ -23,11 +24,14 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
     minVelocity: 0.8,
     maxVelocity: 45
   });
+
+
   
-  // Scroll progress tracking
+  // Scroll progress tracking with proper ref handling
   const { scrollYProgress } = useScroll({
     container: containerRef,
-    offset: ["start start", "end end"]
+    offset: ["start start", "end end"],
+    layoutEffect: false
   });
 
   // Smooth spring animation for scroll indicator
@@ -79,6 +83,55 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
     });
     setActiveIndex(index);
   }, [commits.length]);
+
+  // Navigation functions for keyboard
+  const navigateToNext = useCallback(() => {
+    if (activeIndex < commits.length - 1) {
+      scrollToItem(activeIndex + 1);
+    }
+  }, [activeIndex, commits.length, scrollToItem]);
+
+  const navigateToPrevious = useCallback(() => {
+    if (activeIndex > 0) {
+      scrollToItem(activeIndex - 1);
+    }
+  }, [activeIndex, scrollToItem]);
+
+  const navigateToFirst = useCallback(() => {
+    scrollToItem(0);
+  }, [scrollToItem]);
+
+  const navigateToLast = useCallback(() => {
+    scrollToItem(commits.length - 1);
+  }, [commits.length, scrollToItem]);
+
+  const pageUp = useCallback(() => {
+    const newIndex = Math.max(0, activeIndex - 5);
+    scrollToItem(newIndex);
+  }, [activeIndex, scrollToItem]);
+
+  const pageDown = useCallback(() => {
+    const newIndex = Math.min(commits.length - 1, activeIndex + 5);
+    scrollToItem(newIndex);
+  }, [activeIndex, commits.length, scrollToItem]);
+
+  // Setup keyboard navigation
+  useKeyboardNavigation({
+    onArrowUp: navigateToPrevious,
+    onArrowDown: navigateToNext,
+    onHome: navigateToFirst,
+    onEnd: navigateToLast,
+    onPageUp: pageUp,
+    onPageDown: pageDown,
+    onSpace: () => {
+      // Copy current commit hash
+      const currentCommit = commits[activeIndex];
+      if (currentCommit) {
+        navigator.clipboard.writeText(currentCommit.hash).catch(console.error);
+      }
+    },
+    enabled: true
+  });
 
   // Handle scrubber interaction
   const handleScrubberClick = useCallback((e: React.MouseEvent) => {
