@@ -78,6 +78,116 @@ fn get_git_file_at_commit(file_path: String, commit_hash: String) -> Result<Stri
 }
 
 #[command]
+fn get_git_branches(repo_path: String) -> Result<Vec<String>, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    let output = Command::new("git")
+        .args(["branch", "--format=%(refname:short)"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        let branches: Vec<String> = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        Ok(branches)
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[command]
+fn get_git_commits(repo_path: String, limit: Option<usize>) -> Result<String, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    let mut args = vec!["log", "--pretty=format:%h|%an|%ad|%s", "--date=short"];
+    let limit_str;
+    
+    if let Some(limit) = limit {
+        args.push("-n");
+        limit_str = limit.to_string();
+        args.push(&limit_str);
+    }
+
+    let output = Command::new("git")
+        .args(&args)
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).into_owned())
+    }
+}
+
+#[command]
+fn create_virtual_branch(repo_path: String, base_commit: String, branch_name: String) -> Result<String, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // First, check if the commit exists
+    let commit_check = Command::new("git")
+        .args(["rev-parse", "--verify", &base_commit])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !commit_check.status.success() {
+        return Err(format!("Commit {} does not exist", base_commit));
+    }
+
+    // Create a new branch from the specified commit
+    let output = Command::new("git")
+        .args(["checkout", "-b", &branch_name, &base_commit])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(format!("Virtual branch '{}' created from commit {}", branch_name, base_commit))
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[command]
+fn get_branch_history(repo_path: String, branch_name: String) -> Result<String, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    let output = Command::new("git")
+        .args(["log", "--pretty=format:%h|%an|%ad|%s", "--date=short", &branch_name])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).into_owned())
+    }
+}
+
+#[command]
 fn list_directory_files(dir_path: String) -> Result<Vec<String>, String> {
     let path = PathBuf::from(&dir_path);
     
@@ -100,18 +210,14 @@ fn list_directory_files(dir_path: String) -> Result<Vec<String>, String> {
         .map_err(|e| e.to_string())?;
 
     if output.status.success() {
-        let files_str = String::from_utf8_lossy(&output.stdout);
-        let mut files: Vec<String> = files_str
+        let files: Vec<String> = String::from_utf8_lossy(&output.stdout)
             .lines()
-            .filter(|line| !line.is_empty())
-            .filter(|line| !should_exclude_file(line))
-            .map(|line| line.to_string())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && !should_exclude_file(s))
             .collect();
-        
-        files.sort();
         Ok(files)
     } else {
-        // Fall back to regular file listing if git command fails
+        // Fall back to regular file listing if git ls-files fails
         collect_files_recursive(&path, &path)
     }
 }
