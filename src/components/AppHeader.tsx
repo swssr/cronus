@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Search, X } from 'lucide-react';
+import { MagnifyingGlass, X } from '@phosphor-icons/react';
 import type { Commit } from '../types';
 
 type ViewMode = 'carousel' | 'immersive';
@@ -82,7 +82,7 @@ export default function AppHeader({
         {isFileHistoryView && (
           <div className="search-section">
             <div className="search-container">
-              <Search className="search-icon" size={16} />
+              <MagnifyingGlass className="search-icon" size={16} />
               <input
                 ref={searchInputRef}
                 type="text"

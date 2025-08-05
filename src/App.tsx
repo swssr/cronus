@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
 import { Commit, RecentRepository } from "./types";
 import {
@@ -16,11 +15,13 @@ import { CarouselView, ImmersiveView } from "./views";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
-import { ChevronUp, ChevronDown, Search, X } from "lucide-react";
+import { CaretUp, CaretDown, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { useRef } from "react";
 import RecentRepoCard from "./components/RecentReposList";
 import AppHeader from "./components/AppHeader";
+import { FilePicker } from "./components/FilePicker";
 import { getFileTypeColor } from "./utils/colorUtils";
+import { FileIcon } from "./components/FileIcon";
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
@@ -39,17 +40,7 @@ function App() {
     setRecentRepos(getRecentRepositories());
   }, []);
 
-  async function pickDirectory() {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: "Select a Git Repository Directory",
-    });
 
-    if (typeof selected === "string") {
-      await openRepository(selected);
-    }
-  }
 
   async function openRepository(repoPath: string) {
     setDirectory(repoPath);
@@ -174,26 +165,19 @@ function App() {
 
       {!directory ? (
         <div className="welcome-screen">
-          <div className="welcome-content">
-            <h2>Select a Repository</h2>
-            <p>Choose a git repository to explore file history</p>
-            <button
-              type="button"
-              className="pick-directory-btn"
-              onClick={pickDirectory}
-            >
-              📁 Pick Repository
-            </button>
+          <FilePicker 
+            onDirectorySelected={openRepository}
+            isLoading={false}
+          />
 
-            {recentRepos.length > 0 && (
-              <RecentRepoCard
-                handleClearRecentRepos={handleClearRecentRepos}
-                recentRepos={recentRepos}
-                openRepository={openRepository}
-                handleRemoveRecentRepo={handleRemoveRecentRepo}
-              />
-            )}
-          </div>
+          {recentRepos.length > 0 && (
+            <RecentRepoCard
+              handleClearRecentRepos={handleClearRecentRepos}
+              recentRepos={recentRepos}
+              openRepository={openRepository}
+              handleRemoveRecentRepo={handleRemoveRecentRepo}
+            />
+          )}
         </div>
       ) : !selectedFile ? (
         <div className="file-selection">
@@ -226,7 +210,7 @@ function App() {
                       tabIndex={-1}
                       className="nav-btn"
                     >
-                      <ChevronUp className="w-4 h-4" />
+                      <CaretUp className="w-4 h-4" />
                     </Button>
                     <Button
                       type="button"
@@ -243,7 +227,7 @@ function App() {
                       tabIndex={-1}
                       className="nav-btn"
                     >
-                      <ChevronDown className="w-4 h-4" />
+                      <CaretDown className="w-4 h-4" />
                     </Button>
                   </>
                 )}
@@ -272,7 +256,7 @@ function App() {
                   tabIndex={-1}
                   className="search-btn"
                 >
-                  <Search className="w-4 h-4" />
+                  <MagnifyingGlass className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -380,7 +364,7 @@ function FileCard({
         >
           {file.split('.').pop()?.charAt(0).toUpperCase() || 'F'}
         </div>
-        {getFileIcon(file)}
+        <FileIcon fileName={file} size={20} className="text-muted-foreground" />
       </div>
       <div className="file-details">
         <div className="file-name">

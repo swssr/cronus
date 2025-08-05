@@ -1,5 +1,5 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react';
-import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { ArrowClockwise, Warning } from '@phosphor-icons/react';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -59,9 +59,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <div className="error-boundary">
           <div className="error-content">
-            <div className="error-icon">
-              <AlertTriangle size={48} />
-            </div>
+                    <div className="error-icon">
+          <Warning size={48} weight="fill" />
+        </div>
             
             <h2 className="error-title">Something went wrong</h2>
             
@@ -75,7 +75,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 className="error-button primary"
                 onClick={this.handleRetry}
               >
-                <RefreshCw size={16} />
+                <ArrowClockwise size={16} />
                 Try Again
               </button>
               

@@ -1,4 +1,5 @@
 import { Badge } from "./ui/badge";
+import { Folder, X } from "@phosphor-icons/react";
 
 interface RepoCarProps {
   path: string;
@@ -18,7 +19,9 @@ export default function RepoCard(repo: RepoCarProps) {
         onClick={() => repo.openRepository(repo.path)}
         title={`Open ${repo.path}`}
       >
-        <div className="repo-icon">📁</div>
+        <div className="repo-icon">
+          <Folder className="w-5 h-5" weight="duotone" />
+        </div>
         <div className="repo-details">
           <div className="repo-name">{repo.name}</div>
           <div className="repo-path">{repo.path}</div>
@@ -45,7 +48,7 @@ export default function RepoCard(repo: RepoCarProps) {
         onClick={() => repo.handleRemoveRecentRepo(repo.path)}
         title="Remove from recent repositories"
       >
-        ✕
+        <X className="w-4 h-4" />
       </button>
     </div>
   );
