@@ -9,16 +9,6 @@ struct AppState {
 }
 
 #[command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[command]
-fn hello(value: &str) -> String {
-    "Yoh ".to_owned() + &value.to_string()
-}
-
-#[command]
 fn get_git_history(file_path: String) -> Result<String, String> {
     let path = PathBuf::from(&file_path);
     let dir = path.parent().ok_or("Invalid file path")?;
@@ -373,14 +363,16 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
-            hello,
             get_git_history,
             get_launch_path,
             get_git_file_at_commit,
             list_directory_files,
             get_repo_history,
-            get_file_content_at_commit
+            get_file_content_at_commit,
+            get_branch_history,
+            get_git_branches,
+            get_git_commits,
+            create_virtual_branch
         ])
         .manage(AppState { launch_path })
         .run(tauri::generate_context!())

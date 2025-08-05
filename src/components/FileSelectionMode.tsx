@@ -474,7 +474,7 @@ export default function FileSelectionMode({
             <div className="absolute inset-0 overflow-hidden">
               {[...Array(12)].map((_, i) => (
                 <motion.div
-                  key={i}
+                  key={crypto.randomUUID()}
                   className="absolute w-1 h-1 bg-green-400 rounded-full"
                   animate={{
                     x: [0, Math.random() * 400],
