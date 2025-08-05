@@ -13,7 +13,10 @@ import {
   Hash,
   User,
   TreeStructure,
-  GitCommit
+  GitCommit,
+  GitBranchIcon,
+  TreeIcon,
+  MagnifyingGlassIcon
 } from '@phosphor-icons/react';
 import { FileIcon } from './FileIcon';
 import { getFileTypeColor, getAuthorColor, adjustColorOpacity } from '../utils/colorUtils';
@@ -202,124 +205,23 @@ export default function FileSelectionMode({
 
   return (
     <motion.div 
-      className="file-selection-mode min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"
+      className="min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
     >
-      {/* Cosmic Header */}
-      <motion.div 
-        className="cosmic-header text-center py-8 relative overflow-hidden"
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.2 }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
-        <motion.h1 
-          className="text-4xl font-bold text-white mb-2 relative z-10"
-          animate={{ 
-            textShadow: universeMode === 'balanced' 
-              ? '0 0 20px rgba(147, 51, 234, 0.5)' 
-              : universeMode === 'files'
-              ? '0 0 20px rgba(59, 130, 246, 0.5)'
-              : '0 0 20px rgba(34, 197, 94, 0.5)'
-          }}
-          transition={{ duration: 0.5 }}
-        >
-          Code Universe Explorer
-        </motion.h1>
-        <p className="text-purple-200">Navigate through files and branches in parallel dimensions</p>
-      </motion.div>
-
-      {/* Universe Controls */}
-      <motion.div 
-        className="universe-controls flex justify-center mb-8"
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
-        <div className="flex gap-4 p-2 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10">
-          <motion.button
-            onClick={() => handleUniverseToggle('files')}
-            className={`universe-toggle px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${
-              universeMode === 'files' 
-                ? 'bg-blue-500/30 text-blue-200 shadow-lg shadow-blue-500/25' 
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <TreeStructure size={20} />
-            <div className="text-left">
-              <div className="font-medium">File Universe</div>
-              <div className="text-xs opacity-70">{availableFiles.length} entities</div>
-            </div>
-          </motion.button>
-          
-          <motion.button
-            onClick={() => handleUniverseToggle('branches')}
-            className={`universe-toggle px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${
-              universeMode === 'branches' 
-                ? 'bg-green-500/30 text-green-200 shadow-lg shadow-green-500/25' 
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <GitCommit size={20} />
-            <div className="text-left">
-              <div className="font-medium">Branch Universe</div>
-              <div className="text-xs opacity-70">{commits.length} commits</div>
-            </div>
-          </motion.button>
-        </div>
-      </motion.div>
-
-      {/* Split Universe Layout */}
-      <div className="universe-split-layout flex gap-6 px-6 pb-8 min-h-[600px]">
+      <div className="universe-split-layout w-full flex gap-6 px-6 pb-8 min-h-[600px]">
         {/* File Universe Pane */}
         <motion.div 
-          className="file-universe-pane relative"
-          animate={{ 
-            scale: leftPaneScale,
-            flex: universeMode === 'files' ? 2 : universeMode === 'branches' ? 0.5 : 1,
+          className="relative"
+          whileHover={{
+            flex: 2,
           }}
           transition={{ duration: 0.6, ease: "easeInOut" }}
         >
           <motion.div 
-            className="universe-container bg-gradient-to-br from-blue-900/30 to-cyan-900/30 backdrop-blur-md rounded-3xl border border-blue-500/20 p-6 h-full relative overflow-hidden"
-            animate={{
-              boxShadow: universeMode === 'files' 
-                ? '0 0 40px rgba(59, 130, 246, 0.3), inset 0 0 40px rgba(59, 130, 246, 0.1)' 
-                : '0 0 20px rgba(59, 130, 246, 0.1)',
-            }}
-            transition={{ duration: 0.5 }}
+            className="p-6 h-full relative overflow-hidden"
           >
-            {/* Animated background particles */}
-            <div className="absolute inset-0 overflow-hidden">
-              {[...Array(12)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-1 h-1 bg-blue-400 rounded-full"
-                  animate={{
-                    x: [0, Math.random() * 400],
-                    y: [0, Math.random() * 300],
-                    opacity: [0.2, 0.8, 0.2]
-                  }}
-                  transition={{
-                    duration: 3 + Math.random() * 2,
-                    repeat: Infinity,
-                    repeatType: "reverse",
-                    delay: i * 0.2
-                  }}
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                  }}
-                />
-              ))}
-            </div>
-            
             <div className="relative z-10">
               <motion.div 
                 className="universe-header mb-6"
@@ -328,22 +230,22 @@ export default function FileSelectionMode({
                 transition={{ delay: 0.3 }}
               >
                 <h2 className="text-2xl font-bold text-blue-200 mb-2 flex items-center gap-3">
-                  <TreeStructure size={28} />
-                  File Universe
+                  <TreeIcon size={28} />
+                  File Selection
                 </h2>
                 <p className="text-blue-300/70">{availableFiles.length} files across dimensions</p>
               </motion.div>
 
               {/* Search Interface */}
               <motion.div 
-                className="search-section mb-6"
+                className="search-section w-full mb-6"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.4 }}
               >
-                <div className="search-wrapper">
-                  <div className="input-group flex items-center gap-2 bg-black/20 backdrop-blur-md rounded-xl border border-blue-500/30 px-4 py-3">
-                    <MagnifyingGlass className="w-5 h-5 text-blue-300" />
+                <div className="search-wrapper w-full">
+                  <div className="input-group w-full flex items-center gap-2 bg-black/20 backdrop-blur-md rounded-xl border border-blue-500/30 px-4 py-3">
+                    <MagnifyingGlassIcon size={20} className="w-5 h-5 text-blue-300" />
                     <Input
                       ref={inputRef}
                       className="flex-1 border-none bg-transparent text-white placeholder-blue-300/50 focus:ring-0 focus-visible:ring-0 focus:outline-none"
@@ -469,32 +371,7 @@ export default function FileSelectionMode({
                 : '0 0 20px rgba(34, 197, 94, 0.1)',
             }}
             transition={{ duration: 0.5 }}
-          >
-            {/* Animated background particles */}
-            <div className="absolute inset-0 overflow-hidden">
-              {[...Array(12)].map((_, i) => (
-                <motion.div
-                  key={crypto.randomUUID()}
-                  className="absolute w-1 h-1 bg-green-400 rounded-full"
-                  animate={{
-                    x: [0, Math.random() * 400],
-                    y: [0, Math.random() * 300],
-                    opacity: [0.2, 0.8, 0.2]
-                  }}
-                  transition={{
-                    duration: 3 + Math.random() * 2,
-                    repeat: Infinity,
-                    repeatType: "reverse",
-                    delay: i * 0.2
-                  }}
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                  }}
-                />
-              ))}
-            </div>
-            
+          >  
             <div className="relative z-10">
               <motion.div 
                 className="universe-header mb-6"
@@ -503,7 +380,7 @@ export default function FileSelectionMode({
                 transition={{ delay: 0.5 }}
               >
                 <h2 className="text-2xl font-bold text-green-200 mb-2 flex items-center gap-3">
-                  <GitCommit size={28} />
+                  <GitBranchIcon size={28} />
                   Branch Universe
                 </h2>
                 <p className="text-green-300/70">Navigate through {branches.length} branches & {commits.length} commits</p>
