@@ -14,8 +14,11 @@ import {
   getGitCommits,
   getBranchHistory,
   createVirtualBranch,
+  applyVirtualBranch,
+  getVirtualBranches,
+  deleteVirtualBranch,
 } from "./utils/index";
-import { CarouselView, ImmersiveView } from "./views";
+import { CarouselView, ImmersiveView, EnhancedImmersiveView } from "./views";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
@@ -248,7 +251,7 @@ function App() {
           }}
         >
           {viewMode === 'immersive' ? (
-            <ImmersiveView 
+            <EnhancedImmersiveView 
               commits={filteredCommits} 
               fileName={fileName}
             />

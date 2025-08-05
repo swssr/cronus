@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { 
@@ -10,10 +11,12 @@ import {
   X,
   Clock,
   Hash,
-  User
+  User,
+  TreeStructure,
+  GitCommit
 } from '@phosphor-icons/react';
 import { FileIcon } from './FileIcon';
-import { getFileTypeColor } from '../utils/colorUtils';
+import { getFileTypeColor, getAuthorColor, adjustColorOpacity } from '../utils/colorUtils';
 import { getGitBranches, getGitCommits } from '../utils/index';
 
 interface FileSelectionModeProps {
@@ -54,6 +57,9 @@ export default function FileSelectionMode({
   const [isLoading, setIsLoading] = useState(false);
   const [virtualBranchName, setVirtualBranchName] = useState('');
   const [selectedCommit, setSelectedCommit] = useState<string>('');
+  const [leftPaneScale, setLeftPaneScale] = useState(1);
+  const [rightPaneScale, setRightPaneScale] = useState(1);
+  const [universeMode, setUniverseMode] = useState<'balanced' | 'files' | 'branches'>('balanced');
   
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -176,257 +182,477 @@ export default function FileSelectionMode({
     );
   };
 
+  // Universe interaction handlers
+  const handleUniverseToggle = (targetUniverse: 'files' | 'branches') => {
+    if (universeMode === targetUniverse) {
+      setUniverseMode('balanced');
+      setLeftPaneScale(1);
+      setRightPaneScale(1);
+    } else {
+      setUniverseMode(targetUniverse);
+      if (targetUniverse === 'files') {
+        setLeftPaneScale(1.1);
+        setRightPaneScale(0.85);
+      } else {
+        setLeftPaneScale(0.85);
+        setRightPaneScale(1.1);
+      }
+    }
+  };
+
   return (
-    <div className="file-selection-mode">
-      {/* Mode Toggle */}
-      <div className="mode-toggle mb-6">
-        <div className="flex gap-2 p-1 bg-muted rounded-lg">
-          <Button
-            variant={mode === 'file' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setMode('file')}
-            className="flex items-center gap-2"
+    <motion.div 
+      className="file-selection-mode min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+    >
+      {/* Cosmic Header */}
+      <motion.div 
+        className="cosmic-header text-center py-8 relative overflow-hidden"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
+        <motion.h1 
+          className="text-4xl font-bold text-white mb-2 relative z-10"
+          animate={{ 
+            textShadow: universeMode === 'balanced' 
+              ? '0 0 20px rgba(147, 51, 234, 0.5)' 
+              : universeMode === 'files'
+              ? '0 0 20px rgba(59, 130, 246, 0.5)'
+              : '0 0 20px rgba(34, 197, 94, 0.5)'
+          }}
+          transition={{ duration: 0.5 }}
+        >
+          Code Universe Explorer
+        </motion.h1>
+        <p className="text-purple-200">Navigate through files and branches in parallel dimensions</p>
+      </motion.div>
+
+      {/* Universe Controls */}
+      <motion.div 
+        className="universe-controls flex justify-center mb-8"
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
+        <div className="flex gap-4 p-2 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10">
+          <motion.button
+            onClick={() => handleUniverseToggle('files')}
+            className={`universe-toggle px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${
+              universeMode === 'files' 
+                ? 'bg-blue-500/30 text-blue-200 shadow-lg shadow-blue-500/25' 
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <FileText size={16} />
-            File History
-          </Button>
-          <Button
-            variant={mode === 'branch' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setMode('branch')}
-            className="flex items-center gap-2"
+            <TreeStructure size={20} />
+            <div className="text-left">
+              <div className="font-medium">File Universe</div>
+              <div className="text-xs opacity-70">{availableFiles.length} entities</div>
+            </div>
+          </motion.button>
+          
+          <motion.button
+            onClick={() => handleUniverseToggle('branches')}
+            className={`universe-toggle px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${
+              universeMode === 'branches' 
+                ? 'bg-green-500/30 text-green-200 shadow-lg shadow-green-500/25' 
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <GitBranch size={16} />
-            Branch/Commit
-          </Button>
-        </div>
-      </div>
-
-      {mode === 'file' ? (
-        <div className="file-mode">
-          <div className="search-section mb-6">
-            <h2 className="text-xl font-semibold mb-2">Choose a File</h2>
-            <p className="text-muted-foreground mb-4">{availableFiles.length} files found</p>
-            
-            <div className="search-wrapper flex justify-center p-2 w-full">
-              <div className="input-group flex w-[500px] items-center gap-1 bg-background rounded-md border border-input px-3 py-2 shadow-sm">
-                <MagnifyingGlass className="w-4 h-4 text-muted-foreground" />
-                <Input
-                  ref={inputRef}
-                  className="flex-1 border-none bg-transparent focus:ring-0 focus-visible:ring-0 focus:outline-none"
-                  placeholder="Search for file (e.g., 'App.tsx', '.css', 'components/')"
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  value={searchTerm}
-                  onKeyDown={handleSearchKeyDown}
-                  autoFocus
-                />
-                
-                {searchTerm && searchResults.length > 0 && (
-                  <>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setFocusedResult((prev) => Math.max(prev - 1, 0));
-                        inputRef.current?.focus();
-                      }}
-                      disabled={focusedResult === 0}
-                      title="Previous result (↑)"
-                      tabIndex={-1}
-                      className="nav-btn"
-                    >
-                      <CaretUp className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setFocusedResult((prev) =>
-                          Math.min(prev + 1, searchResults.length - 1),
-                        );
-                        inputRef.current?.focus();
-                      }}
-                      disabled={focusedResult === searchResults.length - 1}
-                      title="Next result (↓)"
-                      tabIndex={-1}
-                      className="nav-btn"
-                    >
-                      <CaretDown className="w-4 h-4" />
-                    </Button>
-                  </>
-                )}
-                
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setSearchTerm("")}
-                  title="Clear search"
-                  tabIndex={-1}
-                  style={{ visibility: searchTerm ? "visible" : "hidden" }}
-                  className="clear-btn"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
+            <GitCommit size={20} />
+            <div className="text-left">
+              <div className="font-medium">Branch Universe</div>
+              <div className="text-xs opacity-70">{commits.length} commits</div>
             </div>
-          </div>
-
-          {/* File Results */}
-          <div className="file-results">
-            {searchTerm ? (
-              <div className="search-results">
-                {searchResults.map((result, idx) => (
-                  <FileCard
-                    key={result.file}
-                    file={result.file}
-                    idx={idx}
-                    focusedResult={focusedResult}
-                    selectFile={onFileSelect}
-                    searchTerm={searchTerm}
-                    highlightMatch={highlightMatch}
-                    score={result.score}
-                  />
-                ))}
-                {searchResults.length === 0 && (
-                  <div className="no-results text-center text-muted-foreground py-8">
-                    No files match your search.
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="file-categories">
-                {Object.keys(organizedFiles).map((category) => (
-                  <div key={category} className="file-category mb-6">
-                    <div className="category-header flex items-center justify-between mb-3">
-                      <h3 className="text-lg font-medium">{category}</h3>
-                      <span className="category-count text-sm text-muted-foreground bg-muted px-2 py-1 rounded">
-                        {organizedFiles[category].length}
-                      </span>
-                    </div>
-                    <div className="category-files grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {organizedFiles[category].map((file) => (
-                        <FileCard
-                          key={file}
-                          file={file}
-                          idx={-1}
-                          focusedResult={-1}
-                          selectFile={onFileSelect}
-                          searchTerm=""
-                          highlightMatch={highlightMatch}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          </motion.button>
         </div>
-      ) : (
-        <div className="branch-mode">
-          <div className="search-section mb-6">
-            <h2 className="text-xl font-semibold mb-2">Branch & Commit History</h2>
-            <p className="text-muted-foreground mb-4">View branch history or jump to specific commits</p>
-            
-            <div className="search-wrapper flex justify-center p-2 w-full">
-              <div className="input-group flex w-[500px] items-center gap-1 bg-background rounded-md border border-input px-3 py-2 shadow-sm">
-                <Hash className="w-4 h-4 text-muted-foreground" />
-                <Input
-                  className="flex-1 border-none bg-transparent focus:ring-0 focus-visible:ring-0 focus:outline-none"
-                  placeholder="Search commits by hash, author, or message"
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  value={searchTerm}
-                  onKeyDown={handleSearchKeyDown}
-                />
-              </div>
-            </div>
-          </div>
+      </motion.div>
 
-          {/* Branch Selection */}
-          <div className="branch-section mb-6">
-            <h3 className="text-lg font-medium mb-3">Branches</h3>
-            <div className="branches grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {branches.map((branch) => (
-                <button
-                  type="button"
-                  key={branch}
-                  onClick={() => onBranchSelect(branch)}
-                  className="branch-card p-3 border rounded-lg hover:bg-muted transition-colors text-left"
-                >
-                  <div className="flex items-center gap-2">
-                    <GitBranch className="w-4 h-4" />
-                    <span className="font-medium">{branch}</span>
-                  </div>
-                </button>
+      {/* Split Universe Layout */}
+      <div className="universe-split-layout flex gap-6 px-6 pb-8 min-h-[600px]">
+        {/* File Universe Pane */}
+        <motion.div 
+          className="file-universe-pane relative"
+          animate={{ 
+            scale: leftPaneScale,
+            flex: universeMode === 'files' ? 2 : universeMode === 'branches' ? 0.5 : 1,
+          }}
+          transition={{ duration: 0.6, ease: "easeInOut" }}
+        >
+          <motion.div 
+            className="universe-container bg-gradient-to-br from-blue-900/30 to-cyan-900/30 backdrop-blur-md rounded-3xl border border-blue-500/20 p-6 h-full relative overflow-hidden"
+            animate={{
+              boxShadow: universeMode === 'files' 
+                ? '0 0 40px rgba(59, 130, 246, 0.3), inset 0 0 40px rgba(59, 130, 246, 0.1)' 
+                : '0 0 20px rgba(59, 130, 246, 0.1)',
+            }}
+            transition={{ duration: 0.5 }}
+          >
+            {/* Animated background particles */}
+            <div className="absolute inset-0 overflow-hidden">
+              {[...Array(12)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 bg-blue-400 rounded-full"
+                  animate={{
+                    x: [0, Math.random() * 400],
+                    y: [0, Math.random() * 300],
+                    opacity: [0.2, 0.8, 0.2]
+                  }}
+                  transition={{
+                    duration: 3 + Math.random() * 2,
+                    repeat: Infinity,
+                    repeatType: "reverse",
+                    delay: i * 0.2
+                  }}
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                />
               ))}
             </div>
-          </div>
-
-          {/* Commit History */}
-          <div className="commit-section">
-            <h3 className="text-lg font-medium mb-3">Recent Commits</h3>
-            <div className="commits space-y-2">
-              {commits
-                .filter(commit => 
-                  commit.hash.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  commit.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  commit.message.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map((commit, idx) => (
-                                     <CommitCard
-                     key={commit.hash}
-                     commit={commit}
-                     idx={idx}
-                     focusedResult={focusedResult}
-                     onSelect={(hash) => {
-                       onCommitSelect(hash);
-                       setSelectedCommit(hash);
-                     }}
-                     searchTerm={searchTerm}
-                     highlightMatch={highlightMatch}
-                     isSelected={selectedCommit === commit.hash}
-                   />
-                ))}
-            </div>
-          </div>
-
-          {/* Virtual Branch Creation */}
-          <div className="virtual-branch-section mt-8 p-4 border rounded-lg bg-muted/50">
-            <h3 className="text-lg font-medium mb-3">Create Virtual Branch</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Create a virtual branch from any commit to explore changes without affecting your working directory.
-            </p>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Virtual branch name"
-                value={virtualBranchName}
-                onChange={(e) => setVirtualBranchName(e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                onClick={() => {
-                  if (selectedCommit && virtualBranchName) {
-                    onCreateVirtualBranch(selectedCommit, virtualBranchName);
-                    setVirtualBranchName('');
-                    setSelectedCommit('');
-                  }
-                }}
-                disabled={!selectedCommit || !virtualBranchName}
+            
+            <div className="relative z-10">
+              <motion.div 
+                className="universe-header mb-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
               >
-                Create Branch
-              </Button>
+                <h2 className="text-2xl font-bold text-blue-200 mb-2 flex items-center gap-3">
+                  <TreeStructure size={28} />
+                  File Universe
+                </h2>
+                <p className="text-blue-300/70">{availableFiles.length} files across dimensions</p>
+              </motion.div>
+
+              {/* Search Interface */}
+              <motion.div 
+                className="search-section mb-6"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                <div className="search-wrapper">
+                  <div className="input-group flex items-center gap-2 bg-black/20 backdrop-blur-md rounded-xl border border-blue-500/30 px-4 py-3">
+                    <MagnifyingGlass className="w-5 h-5 text-blue-300" />
+                    <Input
+                      ref={inputRef}
+                      className="flex-1 border-none bg-transparent text-white placeholder-blue-300/50 focus:ring-0 focus-visible:ring-0 focus:outline-none"
+                      placeholder="Search the file cosmos..."
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      value={searchTerm}
+                      onKeyDown={handleSearchKeyDown}
+                    />
+                    {searchTerm && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSearchTerm("")}
+                        className="text-blue-300 hover:text-white hover:bg-blue-500/20"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* File Results */}
+              <div className="file-results max-h-[500px] overflow-y-auto custom-scrollbar">
+                <AnimatePresence mode="wait">
+                  {searchTerm ? (
+                    <motion.div 
+                      key="search-results"
+                      className="search-results space-y-2"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                    >
+                      {searchResults.map((result, idx) => (
+                        <EnhancedFileCard
+                          key={result.file}
+                          file={result.file}
+                          idx={idx}
+                          focusedResult={focusedResult}
+                          selectFile={onFileSelect}
+                          searchTerm={searchTerm}
+                          highlightMatch={highlightMatch}
+                          score={result.score}
+                        />
+                      ))}
+                      {searchResults.length === 0 && (
+                        <motion.div 
+                          className="no-results text-center text-blue-300/50 py-12"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                        >
+                          <TreeStructure size={48} className="mx-auto mb-4 opacity-30" />
+                          <p>No files found in this dimension</p>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="file-categories"
+                      className="file-categories space-y-6"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                    >
+                      {Object.entries(organizedFiles).map(([category, files], categoryIndex) => (
+                        <motion.div 
+                          key={category} 
+                          className="file-category"
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: categoryIndex * 0.1 }}
+                        >
+                          <div className="category-header flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-blue-200">{category}</h3>
+                            <span className="category-count text-sm text-blue-300/70 bg-blue-500/20 px-3 py-1 rounded-full border border-blue-500/30">
+                              {files.length}
+                            </span>
+                          </div>
+                          <div className="category-files grid grid-cols-1 gap-2">
+                            {files.map((file, fileIndex) => (
+                              <motion.div
+                                key={file}
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: categoryIndex * 0.1 + fileIndex * 0.02 }}
+                              >
+                                <EnhancedFileCard
+                                  file={file}
+                                  idx={-1}
+                                  focusedResult={-1}
+                                  selectFile={onFileSelect}
+                                  searchTerm=""
+                                  highlightMatch={highlightMatch}
+                                />
+                              </motion.div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
+          </motion.div>
+        </motion.div>
+
+        {/* Branch Universe Pane */}
+        <motion.div 
+          className="branch-universe-pane relative"
+          animate={{ 
+            scale: rightPaneScale,
+            flex: universeMode === 'branches' ? 2 : universeMode === 'files' ? 0.5 : 1,
+          }}
+          transition={{ duration: 0.6, ease: "easeInOut" }}
+        >
+          <motion.div 
+            className="universe-container bg-gradient-to-br from-green-900/30 to-emerald-900/30 backdrop-blur-md rounded-3xl border border-green-500/20 p-6 h-full relative overflow-hidden"
+            animate={{
+              boxShadow: universeMode === 'branches' 
+                ? '0 0 40px rgba(34, 197, 94, 0.3), inset 0 0 40px rgba(34, 197, 94, 0.1)' 
+                : '0 0 20px rgba(34, 197, 94, 0.1)',
+            }}
+            transition={{ duration: 0.5 }}
+          >
+            {/* Animated background particles */}
+            <div className="absolute inset-0 overflow-hidden">
+              {[...Array(12)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 bg-green-400 rounded-full"
+                  animate={{
+                    x: [0, Math.random() * 400],
+                    y: [0, Math.random() * 300],
+                    opacity: [0.2, 0.8, 0.2]
+                  }}
+                  transition={{
+                    duration: 3 + Math.random() * 2,
+                    repeat: Infinity,
+                    repeatType: "reverse",
+                    delay: i * 0.2
+                  }}
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                />
+              ))}
+            </div>
+            
+            <div className="relative z-10">
+              <motion.div 
+                className="universe-header mb-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <h2 className="text-2xl font-bold text-green-200 mb-2 flex items-center gap-3">
+                  <GitCommit size={28} />
+                  Branch Universe
+                </h2>
+                <p className="text-green-300/70">Navigate through {branches.length} branches & {commits.length} commits</p>
+              </motion.div>
+
+              {/* Search Interface */}
+              <motion.div 
+                className="search-section mb-6"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.6 }}
+              >
+                <div className="search-wrapper">
+                  <div className="input-group flex items-center gap-2 bg-black/20 backdrop-blur-md rounded-xl border border-green-500/30 px-4 py-3">
+                    <Hash className="w-5 h-5 text-green-300" />
+                    <Input
+                      className="flex-1 border-none bg-transparent text-white placeholder-green-300/50 focus:ring-0 focus-visible:ring-0 focus:outline-none"
+                      placeholder="Search branches & commits..."
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      value={searchTerm}
+                      onKeyDown={handleSearchKeyDown}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+
+              <div className="branch-content max-h-[500px] overflow-y-auto custom-scrollbar space-y-6">
+                {/* Branches Section */}
+                <motion.div 
+                  className="branches-section"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                >
+                  <h3 className="text-lg font-semibold text-green-200 mb-4 flex items-center gap-2">
+                    <GitBranch size={20} />
+                    Active Branches
+                  </h3>
+                  <div className="branches-grid grid grid-cols-1 gap-2">
+                    {branches.map((branch, idx) => (
+                      <motion.button
+                        key={branch}
+                        type="button"
+                        onClick={() => onBranchSelect(branch)}
+                        className="branch-card p-4 bg-green-500/10 backdrop-blur-sm border border-green-500/20 rounded-xl hover:bg-green-500/20 hover:border-green-400/30 transition-all duration-300 text-left group"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.8 + idx * 0.05 }}
+                        whileHover={{ scale: 1.02, x: 5 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="branch-icon p-2 bg-green-500/20 rounded-lg group-hover:bg-green-500/30 transition-colors">
+                            <GitBranch className="w-4 h-4 text-green-300" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-green-200">{branch}</div>
+                            <div className="text-xs text-green-300/60">Click to explore timeline</div>
+                          </div>
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+
+                {/* Commits Section */}
+                <motion.div 
+                  className="commits-section"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9 }}
+                >
+                  <h3 className="text-lg font-semibold text-green-200 mb-4 flex items-center gap-2">
+                    <Clock size={20} />
+                    Recent Commits
+                  </h3>
+                  <div className="commits-timeline space-y-3">
+                    {commits
+                      .filter(commit => 
+                        commit.hash.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        commit.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        commit.message.toLowerCase().includes(searchTerm.toLowerCase())
+                      )
+                      .slice(0, 10)
+                      .map((commit, idx) => (
+                        <EnhancedCommitCard
+                          key={commit.hash}
+                          commit={commit}
+                          idx={idx}
+                          focusedResult={focusedResult}
+                          onSelect={(hash) => {
+                            onCommitSelect(hash);
+                            setSelectedCommit(hash);
+                          }}
+                          searchTerm={searchTerm}
+                          highlightMatch={highlightMatch}
+                          isSelected={selectedCommit === commit.hash}
+                          animationDelay={1.0 + idx * 0.05}
+                        />
+                      ))}
+                  </div>
+                </motion.div>
+
+                {/* Virtual Branch Creation */}
+                <motion.div 
+                  className="virtual-branch-section bg-gradient-to-r from-purple-500/10 to-green-500/10 backdrop-blur-sm border border-purple-500/20 rounded-xl p-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.2 }}
+                >
+                  <h3 className="text-lg font-semibold text-purple-200 mb-3 flex items-center gap-2">
+                    <GitBranch size={20} className="text-purple-300" />
+                    Create Virtual Branch
+                  </h3>
+                  <p className="text-sm text-purple-300/70 mb-4">
+                    Create a virtual branch from any commit to explore changes without affecting your working directory.
+                  </p>
+                  <div className="flex gap-3">
+                    <Input
+                      placeholder="Virtual branch name"
+                      value={virtualBranchName}
+                      onChange={(e) => setVirtualBranchName(e.target.value)}
+                      className="flex-1 bg-purple-500/10 border-purple-500/20 text-white placeholder-purple-300/50"
+                    />
+                    <Button
+                      onClick={() => {
+                        if (selectedCommit && virtualBranchName) {
+                          onCreateVirtualBranch(selectedCommit, virtualBranchName);
+                          setVirtualBranchName('');
+                          setSelectedCommit('');
+                        }
+                      }}
+                      disabled={!selectedCommit || !virtualBranchName}
+                      className="bg-gradient-to-r from-purple-500 to-green-500 hover:from-purple-600 hover:to-green-600 text-white font-medium"
+                    >
+                      Create Branch
+                    </Button>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      </div>
+    </motion.div>
   );
 }
 
-function FileCard({
+function EnhancedFileCard({
   file,
   idx,
   focusedResult,
@@ -443,46 +669,78 @@ function FileCard({
   highlightMatch: (text: string, query: string) => React.ReactNode;
   score?: number;
 }) {
+  const fileExtension = file.split('.').pop()?.toLowerCase() || '';
+  const fileName = file.split('/').pop() || '';
+  const filePath = file.includes('/') ? file.substring(0, file.lastIndexOf('/')) : '';
+  const fileColor = getFileTypeColor(file);
+  
   return (
-    <button
+    <motion.button
       type="button"
-      className={`file-card p-3 border rounded-lg hover:bg-muted transition-colors text-left ${
-        idx === focusedResult ? "ring-2 ring-primary" : ""
+      className={`file-card p-4 bg-blue-500/10 backdrop-blur-sm border border-blue-500/20 rounded-xl hover:bg-blue-500/20 hover:border-blue-400/30 transition-all duration-300 text-left group w-full ${
+        idx === focusedResult ? "ring-2 ring-blue-400 bg-blue-500/25" : ""
       }`}
       onClick={() => selectFile(file)}
+      whileHover={{ scale: 1.02, x: 5 }}
+      whileTap={{ scale: 0.98 }}
     >
-      <div className="flex items-center gap-3">
-        <div className="file-icon-container">
+      <div className="flex items-center gap-4">
+        <motion.div 
+          className="file-icon-container relative"
+          whileHover={{ rotate: 5, scale: 1.1 }}
+        >
           <div 
-            className="file-type-indicator w-8 h-8 rounded flex items-center justify-center text-xs font-medium text-white"
-            style={{ backgroundColor: getFileTypeColor(file) }}
-            title={`${file.split('.').pop()?.toUpperCase()} file`}
+            className="file-type-indicator w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-lg"
+            style={{ 
+              backgroundColor: fileColor,
+              boxShadow: `0 0 20px ${adjustColorOpacity(fileColor, 0.4)}`
+            }}
+            title={`${fileExtension.toUpperCase()} file`}
           >
-            {file.split('.').pop()?.charAt(0).toUpperCase() || 'F'}
+            {fileExtension.charAt(0).toUpperCase() || 'F'}
           </div>
-          <FileIcon fileName={file} size={16} className="text-muted-foreground mt-1" />
-        </div>
+          <motion.div
+            className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-400 rounded-full flex items-center justify-center"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <FileIcon fileName={file} size={10} className="text-white" />
+          </motion.div>
+        </motion.div>
+        
         <div className="file-details flex-1 min-w-0">
-          <div className="file-name font-medium truncate">
-            {highlightMatch(file.split("/").pop() || "", searchTerm)}
+          <div className="file-name font-semibold text-blue-100 mb-1 group-hover:text-white transition-colors">
+            {highlightMatch(fileName, searchTerm)}
           </div>
-          {file.includes("/") && (
-            <div className="file-path text-sm text-muted-foreground truncate">
-              {file.substring(0, file.lastIndexOf("/"))}/
+          {filePath && (
+            <div className="file-path text-sm text-blue-300/70 mb-1 truncate">
+              📁 {filePath}/
             </div>
           )}
           {score && (
-            <div className="score text-xs text-muted-foreground">
+            <div className="score text-xs text-blue-300/50 flex items-center gap-1">
+              <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
               Relevance: {score}
             </div>
           )}
         </div>
+        
+        <motion.div
+          className="file-action-indicator opacity-0 group-hover:opacity-100 transition-opacity"
+          initial={{ x: 10 }}
+          whileHover={{ x: 0 }}
+        >
+          <div className="w-6 h-6 bg-blue-400/20 rounded-full flex items-center justify-center">
+            <CaretDown className="w-3 h-3 text-blue-300 rotate-[-90deg]" />
+          </div>
+        </motion.div>
       </div>
-    </button>
+    </motion.button>
   );
 }
 
-function CommitCard({
+function EnhancedCommitCard({
   commit,
   idx,
   focusedResult,
@@ -490,6 +748,7 @@ function CommitCard({
   searchTerm,
   highlightMatch,
   isSelected,
+  animationDelay = 0,
 }: {
   commit: CommitInfo;
   idx: number;
@@ -498,35 +757,96 @@ function CommitCard({
   searchTerm: string;
   highlightMatch: (text: string, query: string) => React.ReactNode;
   isSelected?: boolean;
+  animationDelay?: number;
 }) {
+  const authorColor = getAuthorColor(commit.author);
+  const commitDate = new Date(commit.date);
+  const isRecent = Date.now() - commitDate.getTime() < 7 * 24 * 60 * 60 * 1000; // Last 7 days
+  
   return (
-    <button
+    <motion.button
       type="button"
-      className={`commit-card p-3 border rounded-lg hover:bg-muted transition-colors text-left ${
-        idx === focusedResult ? "ring-2 ring-primary" : ""
-      } ${isSelected ? "bg-primary/10 border-primary" : ""}`}
+      className={`commit-card p-4 bg-green-500/10 backdrop-blur-sm border border-green-500/20 rounded-xl hover:bg-green-500/20 hover:border-green-400/30 transition-all duration-300 text-left group w-full relative ${
+        idx === focusedResult ? "ring-2 ring-green-400 bg-green-500/25" : ""
+      } ${isSelected ? "bg-green-500/25 border-green-400 shadow-lg shadow-green-500/20" : ""}`}
       onClick={() => onSelect(commit.hash)}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: animationDelay }}
+      whileHover={{ scale: 1.02, x: 5 }}
+      whileTap={{ scale: 0.98 }}
     >
-      <div className="flex items-start gap-3">
-        <div className="commit-hash font-mono text-sm bg-muted px-2 py-1 rounded">
-          {commit.hash.substring(0, 7)}
-        </div>
+      {/* Timeline connector */}
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-green-400/50 to-green-600/50 rounded-r-full" />
+      
+      <div className="flex items-start gap-4 relative">
+        {/* Commit hash with enhanced styling */}
+        <motion.div 
+          className="commit-hash-container"
+          whileHover={{ scale: 1.05 }}
+        >
+          <div 
+            className="commit-hash font-mono text-xs bg-black/30 backdrop-blur-sm px-3 py-2 rounded-lg border shadow-lg"
+            style={{
+              borderColor: adjustColorOpacity(authorColor, 0.3),
+              color: authorColor,
+              boxShadow: `0 0 15px ${adjustColorOpacity(authorColor, 0.2)}`
+            }}
+          >
+            {commit.hash.substring(0, 7)}
+          </div>
+          {isRecent && (
+            <motion.div
+              className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full"
+              animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
+          )}
+        </motion.div>
+        
         <div className="commit-details flex-1 min-w-0">
-          <div className="commit-message font-medium mb-1">
+          <div className="commit-message font-semibold text-green-100 mb-2 group-hover:text-white transition-colors">
             {highlightMatch(commit.message, searchTerm)}
           </div>
-          <div className="commit-meta text-sm text-muted-foreground flex items-center gap-4">
-            <span className="flex items-center gap-1">
+          
+          <div className="commit-meta flex items-center gap-4 text-sm">
+            <motion.span 
+              className="flex items-center gap-2 px-2 py-1 rounded-lg"
+              style={{
+                backgroundColor: adjustColorOpacity(authorColor, 0.15),
+                color: authorColor,
+                border: `1px solid ${adjustColorOpacity(authorColor, 0.3)}`
+              }}
+              whileHover={{ scale: 1.05 }}
+            >
               <User size={12} />
               {highlightMatch(commit.author, searchTerm)}
-            </span>
-            <span className="flex items-center gap-1">
+            </motion.span>
+            
+            <span className="flex items-center gap-2 text-green-300/70">
               <Clock size={12} />
-              {commit.date}
+              <span className="font-mono text-xs">
+                {commitDate.toLocaleDateString('en', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
             </span>
           </div>
         </div>
+        
+        <motion.div
+          className="commit-action-indicator opacity-0 group-hover:opacity-100 transition-opacity"
+          initial={{ x: 10 }}
+          whileHover={{ x: 0 }}
+        >
+          <div className="w-8 h-8 bg-green-400/20 rounded-full flex items-center justify-center">
+            <GitCommit className="w-4 h-4 text-green-300" />
+          </div>
+        </motion.div>
       </div>
-    </button>
+    </motion.button>
   );
 } 

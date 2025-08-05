@@ -47,8 +47,7 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
 
   const { scrollYProgress } = useScroll({
     ...(isContainerReady && containerRef.current ? { container: containerRef } : {}),
-    offset: ["start start", "end end"],
-    layoutEffect: false
+    offset: ["start start", "end end"]
   });
 
   // Smooth spring animation for scroll indicator

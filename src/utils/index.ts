@@ -204,6 +204,49 @@ export async function createVirtualBranch(
   }
 }
 
+export async function applyVirtualBranch(
+  repoPath: string, 
+  branchName: string
+): Promise<string> {
+  try {
+    const result = await invoke<string>("apply_virtual_branch", {
+      repoPath,
+      branchName,
+    });
+    return result;
+  } catch (error) {
+    console.error("Error applying virtual branch:", error);
+    throw error;
+  }
+}
+
+export async function getVirtualBranches(repoPath: string): Promise<string[]> {
+  try {
+    const branches = await invoke<string[]>("get_virtual_branches", {
+      repoPath,
+    });
+    return branches;
+  } catch (error) {
+    console.error("Error getting virtual branches:", error);
+    return [];
+  }
+}
+
+export async function deleteVirtualBranch(
+  repoPath: string, 
+  branchName: string
+): Promise<void> {
+  try {
+    await invoke<void>("delete_virtual_branch", {
+      repoPath,
+      branchName,
+    });
+  } catch (error) {
+    console.error("Error deleting virtual branch:", error);
+    throw error;
+  }
+}
+
 export async function getDirectoryFiles(dirPath: string): Promise<string[]> {
   try {
     const files = await invoke<string[]>("list_directory_files", {
