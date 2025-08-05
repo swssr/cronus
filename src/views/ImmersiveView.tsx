@@ -1,29 +1,28 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, useScroll, useTransform, useSpring, AnimatePresence } from "framer-motion";
-import type { Commit, DiffOptions } from "../types";
+import type { Commit } from "../types";
 import { Editor } from "@monaco-editor/react";
 import { getFileLanguage } from "../utils/index";
+import { useMomentumScroll } from "../hooks/useMomentumScroll";
+import { CardActions } from "../components/CardActions";
 
 interface ImmersiveViewProps {
   commits: Commit[];
   fileName: string;
-  diffOptions?: DiffOptions;
-  onDiffChange?: (options: DiffOptions) => void;
-}
-
-interface TimelineItem {
-  commit: Commit;
-  date: Date;
-  year: number;
-  month: string;
-  day: number;
-  index: number;
 }
 
 export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  
+  // Setup momentum scrolling
+  useMomentumScroll(containerRef, {
+    friction: 0.92,
+    elasticity: 0.15,
+    minVelocity: 0.8,
+    maxVelocity: 45
+  });
   
   // Scroll progress tracking
   const { scrollYProgress } = useScroll({
@@ -38,36 +37,7 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
   });
 
   // Pre-calculate transform for scrubber thumb
-  const thumbTransform = useTransform(scrollProgress, [0, 1], ["0%", "calc(100% - 20px)"]);
-
-  // Transform timeline items data
-  const timelineItems: TimelineItem[] = useMemo(() => {
-    return commits.map((commit, index) => {
-      const date = new Date(commit.date);
-      return {
-        commit,
-        date,
-        year: date.getFullYear(),
-        month: date.toLocaleDateString('en', { month: 'short' }),
-        day: date.getDate(),
-        index
-      };
-    });
-  }, [commits]);
-
-  // Group items by year for better organization
-  const groupedByYear = useMemo(() => {
-    const groups: { [year: number]: TimelineItem[] } = {};
-    timelineItems.forEach(item => {
-      if (!groups[item.year]) {
-        groups[item.year] = [];
-      }
-      groups[item.year].push(item);
-    });
-    return groups;
-  }, [timelineItems]);
-
-  const years = Object.keys(groupedByYear).map(Number).sort((a, b) => b - a);
+  const thumbTransform = useTransform(scrollProgress, [0, 1], ["0%", "calc(100% - 16px)"]);
 
   // Auto-detect active item based on scroll position
   useEffect(() => {
@@ -75,7 +45,6 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
     if (!container) return;
 
     const handleScroll = () => {
-      if (isDragging) return;
       
       const scrollTop = container.scrollTop;
       const containerHeight = container.clientHeight;
@@ -83,16 +52,16 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
       
       // Calculate which item should be active based on scroll position
       const progress = scrollTop / (scrollHeight - containerHeight);
-      const newActiveIndex = Math.round(progress * (timelineItems.length - 1));
+      const newActiveIndex = Math.round(progress * (commits.length - 1));
       
-      if (newActiveIndex !== activeIndex && newActiveIndex >= 0 && newActiveIndex < timelineItems.length) {
+      if (newActiveIndex !== activeIndex && newActiveIndex >= 0 && newActiveIndex < commits.length) {
         setActiveIndex(newActiveIndex);
       }
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [activeIndex, timelineItems.length, isDragging]);
+  }, [activeIndex, commits.length]);
 
   // Scroll to specific item
   const scrollToItem = useCallback((index: number) => {
@@ -101,7 +70,7 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
 
     const scrollHeight = container.scrollHeight;
     const containerHeight = container.clientHeight;
-    const progress = index / (timelineItems.length - 1);
+    const progress = index / (commits.length - 1);
     const targetScroll = progress * (scrollHeight - containerHeight);
     
     container.scrollTo({
@@ -109,62 +78,90 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
       behavior: 'smooth'
     });
     setActiveIndex(index);
-  }, [timelineItems.length]);
+  }, [commits.length]);
 
   // Handle scrubber interaction
-  const handleScrubberInteraction = useCallback((clientY: number) => {
-    const scrubber = document.querySelector('.timeline-scrubber') as HTMLElement;
-    if (!scrubber) return;
-
+  const handleScrubberClick = useCallback((e: React.MouseEvent) => {
+    const scrubber = e.currentTarget as HTMLElement;
     const rect = scrubber.getBoundingClientRect();
-    const progress = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-    const targetIndex = Math.round(progress * (timelineItems.length - 1));
-    
+    const progress = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    const targetIndex = Math.round(progress * (commits.length - 1));
     scrollToItem(targetIndex);
-  }, [scrollToItem, timelineItems.length]);
+  }, [commits.length, scrollToItem]);
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (err) {
-      console.error('Failed to copy:', err);
+  // Handle card actions
+  const handleCardAction = useCallback((action: string, commit: Commit) => {
+    switch (action) {
+      case 'copy-hash':
+        navigator.clipboard.writeText(commit.hash).catch(console.error);
+        break;
+      case 'view-diff':
+        // TODO: Implement diff view
+        console.log('View diff for:', commit.hash);
+        break;
+      case 'checkout':
+        // TODO: Implement checkout
+        console.log('Checkout:', commit.hash);
+        break;
+      case 'open-external':
+        // TODO: Implement external open
+        console.log('Open external:', commit.hash);
+        break;
+      case 'download':
+        // TODO: Implement download
+        console.log('Download file at:', commit.hash);
+        break;
+      default:
+        console.log('Unknown action:', action);
     }
-  };
+  }, []);
 
-  const getStats = (commit: Commit) => {
-    if (commit.stats) {
-      return commit.stats;
+  // Copy to clipboard utility
+  const copyToClipboard = useCallback((text: string) => {
+    navigator.clipboard.writeText(text).catch(console.error);
+  }, []);
+
+  // Get commit stats
+  const getStats = useCallback((commit: Commit) => {
+    const stats = { additions: 0, deletions: 0, files: 0 };
+    
+    if (commit.files) {
+      stats.files = commit.files.length;
+      commit.files.forEach(file => {
+        if (file.additions) stats.additions += file.additions;
+        if (file.deletions) stats.deletions += file.deletions;
+      });
     }
     
-    const lines = commit.content.split('\n').length;
-    return {
-      additions: Math.floor(lines * 0.7),
-      deletions: Math.floor(lines * 0.3)
-    };
-  };
+    return stats;
+  }, []);
 
-  // const activeItem = timelineItems[activeIndex];
-
-  if (timelineItems.length === 0) {
+  if (commits.length === 0) {
     return (
       <div className="immersive-timeline-empty">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="empty-content"
+          className="empty-state"
         >
-          <h2>No commits found</h2>
-          <p>Try adjusting your search or check back later</p>
+          <h3>No commits found</h3>
+          <p>There are no commits to display for this file.</p>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="immersive-timeline">
-      {/* Timeline Scrubber */}
-      <motion.div 
-        className="timeline-scrubber"
+    <motion.div 
+      className="immersive-timeline-clean"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+    >
+      {/* Simplified Scrubber */}
+      <motion.div
+        className="timeline-scrubber-clean"
+        onClick={handleScrubberClick}
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.3 }}
@@ -181,229 +178,179 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
             style={{
               y: thumbTransform
             }}
-            onMouseDown={() => setIsDragging(true)}
-            onMouseUp={() => setIsDragging(false)}
           />
         </div>
         
-        {/* Year markers */}
-        <div className="year-markers">
-          {years.map((year) => {
-            const firstItemOfYear = groupedByYear[year][0];
-            const progress = firstItemOfYear.index / (timelineItems.length - 1);
-            
-            return (
-              <motion.button
-                key={year}
-                type="button"
-                className="year-marker"
-                style={{
-                  top: `${progress * 100}%`
-                }}
-                onClick={() => scrollToItem(firstItemOfYear.index)}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <span>{year}</span>
-              </motion.button>
-            );
-          })}
+        {/* Active commit indicator */}
+        <div className="active-commit-indicator">
+          <span className="commit-index">{activeIndex + 1}</span>
+          <span className="commit-total">/ {commits.length}</span>
         </div>
       </motion.div>
 
       {/* Main Timeline Content */}
       <main 
         ref={containerRef}
-        className="timeline-content-container"
-        onMouseMove={(e) => {
-          if (isDragging) {
-            handleScrubberInteraction(e.clientY);
-          }
-        }}
-        onMouseUp={() => setIsDragging(false)}
+        className="timeline-content-container-clean"
       >
-        <div className="timeline-content">
-          {years.map((year) => (
-            <motion.div
-              key={year}
-              className="timeline-year-section"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true, margin: "-20%" }}
-            >
-              <motion.div 
-                className="year-header"
-                initial={{ opacity: 0, x: -50 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 }}
-              >
-                <h2>{year}</h2>
-                <div className="year-line" />
-              </motion.div>
-
-              <div className="timeline-items">
-                {groupedByYear[year].map((item) => {
-                  const isActive = item.index === activeIndex;
-                  const stats = getStats(item.commit);
-                  
-                  return (
-                    <motion.div
-                      key={item.commit.hash}
-                      className={`timeline-item ${isActive ? 'active' : ''}`}
-                      initial={{ opacity: 0, y: 50 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: "-10%" }}
-                      transition={{ 
-                        delay: (item.index % 5) * 0.1,
-                        duration: 0.6,
-                        ease: [0.4, 0, 0.2, 1]
+        <div className="timeline-content-clean">
+          <div className="timeline-items-clean">
+            {commits.map((commit, index) => {
+              const isActive = index === activeIndex;
+              const isHovered = hoveredIndex === index;
+              const stats = getStats(commit);
+              const date = new Date(commit.date);
+              
+              return (
+                <motion.div
+                  key={commit.hash}
+                  className={`timeline-item-clean ${isActive ? 'active' : ''} ${isHovered ? 'hovered' : ''}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: "-10%" }}
+                  transition={{ delay: index * 0.02 }}
+                  onClick={() => scrollToItem(index)}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      scrollToItem(index);
+                    }
+                  }}
+                  tabIndex={0}
+                >
+                  {/* Timeline dot */}
+                  <div className="timeline-dot-clean">
+                    <motion.div 
+                      className="dot-inner"
+                      animate={{
+                        scale: isActive ? 1.3 : 1,
+                        backgroundColor: isActive ? "#0A84FF" : "#48484A"
                       }}
-                      onClick={() => scrollToItem(item.index)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          scrollToItem(item.index);
-                        }
-                      }}
-                      tabIndex={0}
-                    >
-                      <div className="timeline-node">
-                        <motion.div 
-                          className="timeline-dot"
-                          animate={{
-                            scale: isActive ? 1.5 : 1,
-                            backgroundColor: isActive ? 'var(--accent-blue)' : 'var(--surface-tertiary)'
-                          }}
-                          transition={{ duration: 0.3 }}
-                        />
-                        <div className="timeline-line" />
-                      </div>
+                      transition={{ duration: 0.2 }}
+                    />
+                  </div>
 
-                      <motion.div 
-                        className="timeline-card"
-                        animate={{
-                          scale: isActive ? 1.02 : 1,
-                          y: isActive ? -5 : 0
-                        }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <div className="card-header">
-                          <div className="commit-date">
-                            <span className="month">{item.month}</span>
-                            <span className="day">{item.day}</span>
-                          </div>
-                          
-                          <div className="commit-info">
-                            <h3 className="commit-message">{item.commit.message}</h3>
-                            <div className="commit-meta">
-                              <span className="author">👤 {item.commit.author}</span>
-                              <button
-                                type="button"
-                                className="hash"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  copyToClipboard(item.commit.hash);
-                                }}
-                              >
-                                📋 {item.commit.hash.slice(0, 8)}
-                              </button>
-                            </div>
-                            
-                            <div className="commit-stats">
-                              <span className="stat additions">+{stats.additions}</span>
-                              <span className="stat deletions">-{stats.deletions}</span>
-                              <span className="stat total">∼{stats.additions + stats.deletions}</span>
-                            </div>
-                          </div>
+                  {/* Date Badge - Right Side */}
+                  <motion.div 
+                    className="date-badge"
+                    animate={{
+                      opacity: isActive ? 1 : 0.7,
+                      scale: isActive ? 1.05 : 1
+                    }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="date-day">{date.getDate()}</div>
+                    <div className="date-month">
+                      {date.toLocaleDateString('en', { month: 'short' })}
+                    </div>
+                    {date.getFullYear() !== new Date().getFullYear() && (
+                      <div className="date-year">{date.getFullYear()}</div>
+                    )}
+                  </motion.div>
+
+                  {/* Compact Timeline Card */}
+                  <motion.div 
+                    className="timeline-card-clean"
+                    animate={{
+                      scale: isActive ? 1.02 : 1,
+                      backgroundColor: isActive ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.05)"
+                    }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="card-header-clean">
+                      <div className="commit-info-clean">
+                        <div className="commit-title-row">
+                          <span className="commit-message-clean">{commit.message}</span>
+                          <button
+                            type="button"
+                            className="hash-clean"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(commit.hash);
+                            }}
+                            title="Copy commit hash"
+                          >
+                            {commit.hash.slice(0, 7)}
+                          </button>
                         </div>
+                        
+                        {stats.files > 0 && (
+                          <div className="commit-stats-clean">
+                            <span className="files-count">
+                              {stats.files} file{stats.files > 1 ? 's' : ''}
+                            </span>
+                            {stats.additions > 0 && <span className="additions">+{stats.additions}</span>}
+                            {stats.deletions > 0 && <span className="deletions">-{stats.deletions}</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                        <AnimatePresence>
-                          {isActive && (
-                            <motion.div
-                              className="card-content"
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ 
-                                duration: 0.4,
-                                ease: [0.4, 0, 0.2, 1]
+                    {/* Card Actions */}
+                    <CardActions
+                      commit={commit}
+                      isActive={isActive}
+                      isHovered={isHovered}
+                      onAction={handleCardAction}
+                    />
+
+                    {/* Auto-expand code preview for active item */}
+                    <AnimatePresence>
+                      {isActive && commit.content && (
+                        <motion.div
+                          className="code-preview-clean"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3, ease: "easeInOut" }}
+                        >
+                          <div className="code-container-clean">
+                            <Editor
+                              height="200px"
+                              language={getFileLanguage(fileName)}
+                              value={commit.content}
+                              theme="vs-dark"
+                              options={{
+                                readOnly: true,
+                                minimap: { enabled: false },
+                                scrollBeyondLastLine: false,
+                                fontSize: 12,
+                                lineNumbers: "on",
+                                folding: false,
+                                wordWrap: "on",
+                                automaticLayout: true,
+                                padding: { top: 12, bottom: 12 }
                               }}
-                            >
-                              <div className="code-preview">
-                                <Editor
-                                  height="400px"
-                                  language={getFileLanguage(fileName)}
-                                  value={item.commit.content}
-                                  theme="vs-dark"
-                                  options={{
-                                    readOnly: true,
-                                    minimap: { enabled: false },
-                                    fontSize: 12,
-                                    lineNumbers: "on",
-                                    wordWrap: "on",
-                                    scrollBeyondLastLine: false,
-                                    automaticLayout: true,
-                                    scrollbar: { 
-                                      vertical: 'auto', 
-                                      horizontal: 'auto',
-                                      verticalSliderSize: 8,
-                                      horizontalSliderSize: 8
-                                    },
-                                    folding: false,
-                                    renderLineHighlight: 'none',
-                                    selectionHighlight: false,
-                                    contextmenu: false
-                                  }}
-                                />
-                              </div>
-                              
-                              <div className="card-actions">
-                                <button 
-                                  type="button"
-                                  className="action-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    copyToClipboard(item.commit.content);
-                                  }}
-                                >
-                                  📄 Copy Content
-                                </button>
-                                <button type="button" className="action-btn">
-                                  🔍 View Diff
-                                </button>
-                                <button type="button" className="action-btn">
-                                  ↩️ Restore
-                                </button>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          ))}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       </main>
 
-      {/* Content fade masks */}
-      <div className="timeline-masks">
+      {/* Subtle fade masks */}
+      <div className="timeline-masks-clean">
         <div className="mask-top" />
         <div className="mask-bottom" />
       </div>
 
-      {/* Navigation hints */}
-      <motion.div 
-        className="timeline-hints"
+      {/* Minimal hints */}
+      <motion.div
+        className="timeline-hints-clean"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1 }}
       >
-        <span>Scroll to explore • Click items to expand • Drag timeline scrubber</span>
+        <span>Click timeline to navigate • Scroll to explore</span>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
