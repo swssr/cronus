@@ -19,6 +19,29 @@ export interface Commit {
   };
 }
 
+export interface GitFileStatus {
+  path: string;
+  status: 'modified' | 'added' | 'deleted' | 'untracked' | 'staged';
+  additions?: number;
+  deletions?: number;
+}
+
+export interface GitStatus {
+  staged: GitFileStatus[];
+  unstaged: GitFileStatus[];
+  untracked: string[];
+  current_branch: string;
+  ahead: number;
+  behind: number;
+}
+
+export interface CommitSuggestion {
+  type: 'feat' | 'fix' | 'docs' | 'style' | 'refactor' | 'test' | 'chore';
+  scope?: string;
+  message: string;
+  description?: string;
+}
+
 export type FileNode = {
   name: string;
   path: string;

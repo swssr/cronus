@@ -86,11 +86,11 @@ export function EnhancedSearch({
             break;
           }
           case 'files': {
-            const fileMatches = commit.changes?.filter(change => 
-              fuzzyScore(change.path, queryLower) > 0
-            ) || [];
-            score = fileMatches.length * 100;
-            if (score > 0) matchedFields.push('files');
+            // const fileMatches = commit.changes?.filter(change => 
+            //   fuzzyScore(change.path, queryLower) > 0
+            // ) || [];
+            // score = fileMatches.length * 100;
+            // if (score > 0) matchedFields.push('files');
             break;
           }
           default: {
@@ -98,8 +98,9 @@ export function EnhancedSearch({
             const messageScore = fuzzyScore(commit.message, queryLower);
             const authorScore = fuzzyScore(commit.author || '', queryLower);
             const hashScore = commit.hash.toLowerCase().startsWith(queryLower) ? 500 : 0;
-            const fileScore = commit.changes?.reduce((total, change) => 
-              total + fuzzyScore(change.path, queryLower), 0) || 0;
+            // const fileScore = commit.changes?.reduce((total, change) => 
+            //   total + fuzzyScore(change.path, queryLower), 0) || 0;
+            const fileScore = 0;
             
             score = Math.max(messageScore, authorScore, hashScore, fileScore);
             

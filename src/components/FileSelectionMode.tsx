@@ -52,7 +52,6 @@ export default function FileSelectionMode({
   const [focusedResult, setFocusedResult] = useState(0);
   const [branches, setBranches] = useState<string[]>([]);
   const [commits, setCommits] = useState<CommitInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [virtualBranchName, setVirtualBranchName] = useState('');
   const [selectedCommit, setSelectedCommit] = useState<string>('');
   const [leftPaneFocused, setLeftPaneFocused] = useState(false);
@@ -60,7 +59,7 @@ export default function FileSelectionMode({
   const [focusMode, setFocusMode] = useState<'include' | 'exclude'>('include');
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [excludedFiles, setExcludedFiles] = useState<Set<string>>(new Set());
-  const [mode, setMode] = useState<'file' | 'branch'>('file');
+  const [mode] = useState<'file' | 'branch'>('file');
   
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -125,7 +124,6 @@ export default function FileSelectionMode({
   useEffect(() => {
     if (mode === 'branch' && branches.length === 0) {
         const loadBranchesAndCommits = async () => {
-    setIsLoading(true);
     try {
       // Load branches and commits from the backend
       const [branchesData, commitsData] = await Promise.all([
@@ -142,8 +140,6 @@ export default function FileSelectionMode({
       })));
     } catch (error) {
       console.error('Failed to load branches and commits:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
       

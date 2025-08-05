@@ -1,37 +1,28 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./App.css";
-import { Commit, RecentRepository } from "./types";
+import { Commit, RecentRepository, GitStatus } from "./types";
 import {
   getDirectoryFiles,
-  getFileIcon,
-  organizeFiles,
   getGitHistoryWithContent,
   getRecentRepositories,
   addRecentRepository,
   removeRecentRepository,
   clearRecentRepositories,
-  getGitBranches,
   getGitCommits,
   getBranchHistory,
   createVirtualBranch,
-  applyVirtualBranch,
-  getVirtualBranches,
-  deleteVirtualBranch,
+  getGitStatus,
 } from "./utils/index";
-import { CarouselView, ImmersiveView, EnhancedImmersiveView } from "./views";
+import { CarouselView, EnhancedImmersiveView } from "./views";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { Input } from "./components/ui/input";
-import { Button } from "./components/ui/button";
-import { CaretUp, CaretDown, MagnifyingGlass, X, Moon, Sun } from "@phosphor-icons/react";
-import { useRef } from "react";
 import RecentRepoCard from "./components/RecentReposList";
 import AppHeader from "./components/AppHeader";
 import { FilePicker } from "./components/FilePicker";
-import { getFileTypeColor } from "./utils/colorUtils";
-import { FileIcon } from "./components/FileIcon";
 import FileSelectionMode from "./components/FileSelectionMode";
 import Notification from "./components/Notification";
 import { ThemeToggle } from "./components/ThemeToggle";
+import SmartCommitAssistant from "./components/SmartCommitAssistant";
+import HelpOverlay from "./components/HelpOverlay";
 import React from "react";
 
 // Theme context and provider
@@ -102,20 +93,54 @@ function AppContent() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [commits, setCommits] = useState<Commit[]>([]);
   const [recentRepos, setRecentRepos] = useState<RecentRepository[]>([]);
-  const [currentMode, setCurrentMode] = useState<'file' | 'branch'>('file');
+  const [currentMode, setCurrentMode] = useState<'file' | 'branch' | 'commit'>('file');
   const [notification, setNotification] = useState<{
     message: string;
     type: 'success' | 'error';
   } | null>(null);
+  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
 
-  const [searchTerm, setSearchTerm] = useState<string>("");
   const [fileHistorySearchQuery, setFileHistorySearchQuery] = useState<string>("");
   const [viewMode, setViewMode] = useState<'carousel' | 'immersive'>('immersive');
   const [cardsToShow, setCardsToShow] = useState<1 | 3 | 5>(3);
 
+  const loadGitStatus = useCallback(async () => {
+    if (!directory) return;
+    
+    try {
+      const status = await getGitStatus(directory);
+      setGitStatus(status);
+    } catch (error) {
+      console.error('Failed to load git status:', error);
+      setGitStatus(null);
+    }
+  }, [directory]);
+
   // Load recent repositories on component mount
   useEffect(() => {
     setRecentRepos(getRecentRepositories());
+  }, []);
+
+  // Load git status when directory changes
+  useEffect(() => {
+    if (directory) {
+      loadGitStatus();
+    }
+  }, [directory, loadGitStatus]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Question mark key to open help
+      if (event.key === '?') {
+        event.preventDefault();
+        setShowHelp(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   async function openRepository(repoPath: string) {
@@ -193,8 +218,16 @@ function AppContent() {
     }
   }
 
+  const handleCommitCreated = (commitHash: string) => {
+    setNotification({
+      message: `Commit created successfully! Hash: ${commitHash}`,
+      type: 'success'
+    });
+    // Refresh git status after commit
+    loadGitStatus();
+  };
+
   const fileName = selectedFile ? selectedFile.split("/").pop() || "" : "";
-  const organizedFiles = organizeFiles(availableFiles);
 
   // Filter commits for file history search
   const filteredCommits = fileHistorySearchQuery.trim() 
@@ -204,61 +237,6 @@ function AppContent() {
         commit.content.toLowerCase().includes(fileHistorySearchQuery.toLowerCase())
       )
     : commits;
-
-  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("Value: ", event.target.value);
-    setSearchTerm(event.target.value);
-  };
-
-  const filteredFiles = Object.fromEntries(
-    Object.entries(organizedFiles).filter(([_key, value]) =>
-      value.some((file) =>
-        file.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-    ),
-  );
-
-  const flatResults = Object.entries(filteredFiles).flatMap(([category, files]) =>
-    files.map((file) => ({ category, file }))
-  );
-
-  const [focusedResult, setFocusedResult] = useState(0);
-
-  function highlightMatch(text: string, query: string) {
-    if (!query.trim()) return text;
-    const index = text.toLowerCase().indexOf(query.toLowerCase());
-    if (index === -1) return text;
-
-    return (
-      <>
-        {text.substring(0, index)}
-        <mark className="bg-yellow-200 dark:bg-yellow-800">
-          {text.substring(index, index + query.length)}
-        </mark>
-        {text.substring(index + query.length)}
-      </>
-    );
-  }
-
-  // Keyboard navigation handler
-  const handleSearchKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>,
-  ) => {
-    if (flatResults.length === 0) return;
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setFocusedResult((prev) => Math.min(prev + 1, flatResults.length - 1));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setFocusedResult((prev) => Math.max(prev - 1, 0));
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      const result = flatResults[focusedResult];
-      if (result) selectFile(result.file);
-    }
-  };
-
-  const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="app-container">
@@ -286,6 +264,9 @@ function AppContent() {
         onCardsToShowChange={setCardsToShow}
         commits={commits}
         filteredCommits={filteredCommits}
+        currentMode={currentMode}
+        onModeChange={setCurrentMode}
+        onHelpClick={() => setShowHelp(true)}
       />
 
       {!directory ? (
@@ -301,6 +282,17 @@ function AppContent() {
               recentRepos={recentRepos}
               openRepository={openRepository}
               handleRemoveRecentRepo={handleRemoveRecentRepo}
+            />
+          )}
+        </div>
+      ) : currentMode === 'commit' ? (
+        <div className="commit-mode-container p-6">
+          {gitStatus && (
+            <SmartCommitAssistant
+              repoPath={directory}
+              gitStatus={gitStatus}
+              onStatusUpdate={loadGitStatus}
+              onCommitCreated={handleCommitCreated}
             />
           )}
         </div>
@@ -333,6 +325,12 @@ function AppContent() {
           )}
         </ErrorBoundary>
       )}
+
+      {/* Help Overlay */}
+      <HelpOverlay 
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
+      />
     </div>
   );
 }

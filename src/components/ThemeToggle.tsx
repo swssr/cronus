@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Moon, Sun } from '@phosphor-icons/react';
 import { Button } from './ui/button';
 

@@ -11,7 +11,7 @@ interface CarouselViewProps {
   cardsToShow: 1 | 3 | 5;
 }
 
-export function CarouselView({ commits, fileName, cardsToShow }: CarouselViewProps) {
+export function CarouselView({ commits, cardsToShow }: CarouselViewProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [diffOptions, setDiffOptions] = useState<DiffOptions>({

@@ -146,12 +146,12 @@ export function AnimatedContainer({
     'scale': {
       initial: { opacity: 0, scale: 0.9 },
       animate: { opacity: 1, scale: 1 },
-      transition: { duration: 0.4, delay, type: 'spring', stiffness: 300 }
+      transition: { duration: 0.4, delay }
     },
     'bounce': {
       initial: { opacity: 0, scale: 0.8 },
       animate: { opacity: 1, scale: 1 },
-      transition: { duration: 0.6, delay, type: 'spring', stiffness: 400, damping: 12 }
+      transition: { duration: 0.6, delay }
     }
   };
 

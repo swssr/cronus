@@ -9,7 +9,6 @@ import { CardActions } from "../components/CardActions";
 import { CommitStatsVisualization } from "../components/CommitStatsVisualization";
 import { 
   getAuthorColor, 
-  getCommitTypeColor, 
   getCommitBadge, 
   adjustColorOpacity,
   getActivityColor 
@@ -324,7 +323,7 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
               const stats = getStats(commit);
               const date = new Date(commit.date);
               const authorColor = getAuthorColor(commit.author);
-              const commitTypeColor = getCommitTypeColor(commit.message);
+
               const commitBadge = getCommitBadge(commit.message);
               const activityColor = getActivityColor(stats.additions + stats.deletions);
               

@@ -5,11 +5,10 @@ import { Editor } from "@monaco-editor/react";
 import { getFileLanguage } from "../utils/index";
 import { useMomentumScroll } from "../hooks/useMomentumScroll";
 import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
-import { CardActions } from "../components/CardActions";
+
 import { CommitStatsVisualization } from "../components/CommitStatsVisualization";
 import { 
   getAuthorColor, 
-  getCommitTypeColor, 
   getCommitBadge, 
   adjustColorOpacity,
   getActivityColor 
@@ -442,7 +441,7 @@ export function EnhancedImmersiveView({ commits, fileName }: EnhancedImmersiveVi
               const stats = getStats(commit);
               const date = new Date(commit.date);
               const authorColor = getAuthorColor(commit.author);
-              const commitTypeColor = getCommitTypeColor(commit.message);
+
               const commitBadge = getCommitBadge(commit.message);
               const activityColor = getActivityColor(stats.additions + stats.deletions);
               

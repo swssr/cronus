@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { MagnifyingGlass, X } from '@phosphor-icons/react';
+import { MagnifyingGlass, X, GitCommit, Question } from '@phosphor-icons/react';
 import type { Commit } from '../types';
 
 type ViewMode = 'carousel' | 'immersive';
@@ -18,6 +18,11 @@ interface HeaderProps {
   onCardsToShowChange?: (count: 1 | 3 | 5) => void;
   commits?: Commit[];
   filteredCommits?: Commit[];
+  // Commit mode props
+  currentMode?: 'file' | 'branch' | 'commit';
+  onModeChange?: (mode: 'file' | 'branch' | 'commit') => void;
+  // Help props
+  onHelpClick?: () => void;
 }
 
 export default function AppHeader({
@@ -33,6 +38,9 @@ export default function AppHeader({
   onCardsToShowChange,
   commits = [],
   filteredCommits = [],
+  currentMode = 'file',
+  onModeChange,
+  onHelpClick,
 }: HeaderProps) {
   const repoName = directory ? directory.split('/').pop() || 'Repository' : '';
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -108,6 +116,42 @@ export default function AppHeader({
       
       {/* Right Section - View Controls */}
       <div className="header-right">
+        {/* Help Button */}
+        <button
+          type="button"
+          onClick={onHelpClick}
+          className="help-button"
+          title="Help (?)"
+        >
+          <Question size={16} />
+        </button>
+
+        {/* Mode Navigation (when in repository) */}
+        {directory && !isFileHistoryView && (
+          <div className="mode-navigation">
+            <button 
+              type="button"
+              className={`mode-button ${currentMode === 'file' ? 'active' : ''}`}
+              onClick={() => onModeChange?.('file')}
+              title="File explorer"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M2 4a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V4zm2-1a1 1 0 00-1 1v8a1 1 0 001 1h8a1 1 0 001-1V4a1 1 0 00-1-1H4z"/>
+              </svg>
+              Files
+            </button>
+            <button 
+              type="button"
+              className={`mode-button ${currentMode === 'commit' ? 'active' : ''}`}
+              onClick={() => onModeChange?.('commit')}
+              title="Smart commit assistant"
+            >
+              <GitCommit size={16} />
+              Commit
+            </button>
+          </div>
+        )}
+        
         {isFileHistoryView && (
           <div className="view-controls">
             {/* View Mode Toggle */}

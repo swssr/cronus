@@ -204,6 +204,95 @@ body {
   gap: 1rem;
 }
 
+.mode-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  padding: 0.25rem;
+}
+
+.mode-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left var(--transition-medium);
+}
+
+.mode-button:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.mode-button:hover::before {
+  left: 100%;
+}
+
+.mode-button:active {
+  transform: translateY(0);
+  transition: transform 0.1s;
+}
+
+.mode-button.active {
+  color: var(--text-primary);
+  background: var(--surface-active);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  transform: translateY(0);
+}
+
+.help-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-right: 0.75rem;
+}
+
+.help-button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-light);
+}
+
+.help-button:active {
+  transform: translateY(0);
+}
+
 .view-mode-toggle {
   display: flex;
   background: rgba(255, 255, 255, 0.05);

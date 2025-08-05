@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Commit, RecentRepository } from "../types";
+import { Commit, RecentRepository, GitStatus, CommitSuggestion } from "../types";
 
 const RECENT_REPOS_KEY = "cronus_recent_repositories";
 const MAX_RECENT_REPOS = 10;
@@ -460,5 +460,148 @@ export function organizeFiles(files: string[]): Record<string, string[]> {
   });
 
   return organized;
+}
+
+export async function getGitStatus(repoPath: string): Promise<GitStatus> {
+  try {
+    const status = await invoke<GitStatus>("get_git_status", { repoPath });
+    return status;
+  } catch (error) {
+    console.error("Error getting git status:", error);
+    throw error;
+  }
+}
+
+export async function stageFile(repoPath: string, filePath: string): Promise<void> {
+  try {
+    await invoke<void>("stage_file", { repoPath, filePath });
+  } catch (error) {
+    console.error("Error staging file:", error);
+    throw error;
+  }
+}
+
+export async function unstageFile(repoPath: string, filePath: string): Promise<void> {
+  try {
+    await invoke<void>("unstage_file", { repoPath, filePath });
+  } catch (error) {
+    console.error("Error unstaging file:", error);
+    throw error;
+  }
+}
+
+export async function createCommit(repoPath: string, message: string, files?: string[]): Promise<string> {
+  try {
+    const commitHash = await invoke<string>("create_commit", { 
+      repoPath, 
+      message, 
+      files: files || [] 
+    });
+    return commitHash;
+  } catch (error) {
+    console.error("Error creating commit:", error);
+    throw error;
+  }
+}
+
+export async function suggestCommitMessage(repoPath: string, stagedFiles: string[]): Promise<string> {
+  try {
+    const suggestion = await invoke<string>("suggest_commit_message", { 
+      repoPath, 
+      stagedFiles 
+    });
+    return suggestion;
+  } catch (error) {
+    console.error("Error suggesting commit message:", error);
+    throw error;
+  }
+}
+
+export async function getFileDiff(repoPath: string, filePath: string): Promise<string> {
+  try {
+    const diff = await invoke<string>("get_file_diff", { repoPath, filePath });
+    return diff;
+  } catch (error) {
+    console.error("Error getting file diff:", error);
+    throw error;
+  }
+}
+
+export async function getStagedDiff(repoPath: string, filePath: string): Promise<string> {
+  try {
+    const diff = await invoke<string>("get_staged_diff", { repoPath, filePath });
+    return diff;
+  } catch (error) {
+    console.error("Error getting staged diff:", error);
+    throw error;
+  }
+}
+
+// Enhanced commit message suggestion with conventional commits
+export function generateCommitSuggestions(stagedFiles: string[]): CommitSuggestion[] {
+  const suggestions: CommitSuggestion[] = [];
+  
+  // Analyze file types
+  const hasSrcChanges = stagedFiles.some(f => f.includes('src/') || f.match(/\.(ts|js|tsx|jsx|py|rs|go|java)$/));
+  const hasDocsChanges = stagedFiles.some(f => f.includes('readme') || f.endsWith('.md') || f.includes('docs/'));
+  const hasConfigChanges = stagedFiles.some(f => 
+    f.includes('package.json') || f.includes('cargo.toml') || f.includes('requirements.txt') ||
+    f.match(/\.(toml|json|yaml|yml)$/)
+  );
+  const hasTestChanges = stagedFiles.some(f => f.includes('test') || f.includes('spec') || f.includes('__tests__'));
+  
+  // Generate suggestions based on file types
+  if (hasSrcChanges) {
+    suggestions.push({
+      type: 'feat',
+      scope: 'src',
+      message: 'feat: add new functionality',
+      description: 'New feature or enhancement'
+    });
+  }
+  
+  if (hasDocsChanges) {
+    suggestions.push({
+      type: 'docs',
+      scope: 'docs',
+      message: 'docs: update documentation',
+      description: 'Documentation changes'
+    });
+  }
+  
+  if (hasConfigChanges) {
+    suggestions.push({
+      type: 'chore',
+      scope: 'config',
+      message: 'chore: update configuration',
+      description: 'Configuration and dependency updates'
+    });
+  }
+  
+  if (hasTestChanges) {
+    suggestions.push({
+      type: 'test',
+      scope: 'tests',
+      message: 'test: add or update tests',
+      description: 'Test additions or improvements'
+    });
+  }
+  
+  // Generic suggestions
+  suggestions.push({
+    type: 'fix',
+    scope: 'general',
+    message: 'fix: resolve issue',
+    description: 'Bug fixes and issue resolution'
+  });
+  
+  suggestions.push({
+    type: 'refactor',
+    scope: 'code',
+    message: 'refactor: improve code structure',
+    description: 'Code refactoring and improvements'
+  });
+  
+  return suggestions;
 }
 

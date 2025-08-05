@@ -1,6 +1,5 @@
 import { 
   FileText, 
-  FileCode, 
   FileImage, 
   FileVideo, 
   FileAudio, 
@@ -22,7 +21,6 @@ interface FileIconProps {
 
 export function FileIcon({ fileName, size = 16, className = '' }: FileIconProps) {
   const ext = fileName.split(".").pop()?.toLowerCase();
-  const name = fileName.toLowerCase();
 
   // Extensions
   const iconMap: Record<string, React.ComponentType<any>> = {

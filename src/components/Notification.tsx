@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, X } from '@phosphor-icons/react';
 
 interface NotificationProps {
