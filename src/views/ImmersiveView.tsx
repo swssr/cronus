@@ -6,6 +6,14 @@ import { getFileLanguage } from "../utils/index";
 import { useMomentumScroll } from "../hooks/useMomentumScroll";
 import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
 import { CardActions } from "../components/CardActions";
+import { CommitStatsVisualization } from "../components/CommitStatsVisualization";
+import { 
+  getAuthorColor, 
+  getCommitTypeColor, 
+  getCommitBadge, 
+  adjustColorOpacity,
+  getActivityColor 
+} from "../utils/colorUtils";
 
 interface ImmersiveViewProps {
   commits: Commit[];
@@ -16,6 +24,7 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [showStats, setShowStats] = useState(false);
   
   // Setup momentum scrolling
   useMomentumScroll(containerRef, {
@@ -211,6 +220,60 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
+      {/* Stats Toggle Button */}
+      <motion.button
+        className="stats-toggle-button"
+        onClick={() => setShowStats(!showStats)}
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2 }}
+        title="Toggle Statistics"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M1.5 13A1.5 1.5 0 003 14.5h10a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3A1.5 1.5 0 001.5 6v7zM3 6a.5.5 0 01.5-.5h9a.5.5 0 01.5.5v7a.5.5 0 01-.5.5h-9A.5.5 0 013 13V6z"/>
+          <path d="M5 9.5a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5z"/>
+          <rect x="9" y="7" width="1" height="3" rx="0.5"/>
+          <rect x="11" y="5" width="1" height="5" rx="0.5"/>
+          <rect x="7" y="9" width="1" height="1" rx="0.5"/>
+        </svg>
+        Stats
+      </motion.button>
+
+      {/* Stats Panel */}
+      <AnimatePresence>
+        {showStats && (
+          <motion.div
+            className="stats-panel-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowStats(false)}
+          >
+            <motion.div
+              className="stats-panel"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="stats-panel-header">
+                <h3>Repository Statistics</h3>
+                <button 
+                  className="stats-close-button"
+                  onClick={() => setShowStats(false)}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z"/>
+                  </svg>
+                </button>
+              </div>
+              <CommitStatsVisualization commits={commits} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Simplified Scrubber */}
       <motion.div
         className="timeline-scrubber-clean"
@@ -253,6 +316,10 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
               const isHovered = hoveredIndex === index;
               const stats = getStats(commit);
               const date = new Date(commit.date);
+              const authorColor = getAuthorColor(commit.author);
+              const commitTypeColor = getCommitTypeColor(commit.message);
+              const commitBadge = getCommitBadge(commit.message);
+              const activityColor = getActivityColor(stats.additions + stats.deletions);
               
               return (
                 <motion.div
@@ -273,13 +340,14 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
                   }}
                   tabIndex={0}
                 >
-                  {/* Timeline dot */}
+                  {/* Timeline dot with author color */}
                   <div className="timeline-dot-clean">
                     <motion.div 
                       className="dot-inner"
                       animate={{
                         scale: isActive ? 1.3 : 1,
-                        backgroundColor: isActive ? "#0A84FF" : "#48484A"
+                        backgroundColor: isActive ? authorColor : adjustColorOpacity(authorColor, 0.6),
+                        boxShadow: isActive ? `0 0 12px ${adjustColorOpacity(authorColor, 0.4)}` : "none"
                       }}
                       transition={{ duration: 0.2 }}
                     />
@@ -315,18 +383,44 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
                     <div className="card-header-clean">
                       <div className="commit-info-clean">
                         <div className="commit-title-row">
-                          <span className="commit-message-clean">{commit.message}</span>
-                          <button
-                            type="button"
-                            className="hash-clean"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(commit.hash);
-                            }}
-                            title="Copy commit hash"
-                          >
-                            {commit.hash.slice(0, 7)}
-                          </button>
+                          <div className="commit-message-container">
+                            {commitBadge && (
+                              <span 
+                                className="commit-badge"
+                                style={{ 
+                                  backgroundColor: adjustColorOpacity(commitBadge.color, 0.15),
+                                  color: commitBadge.color,
+                                  border: `1px solid ${adjustColorOpacity(commitBadge.color, 0.3)}`
+                                }}
+                              >
+                                {commitBadge.text}
+                              </span>
+                            )}
+                            <span className="commit-message-clean">{commit.message}</span>
+                          </div>
+                          <div className="commit-meta-row">
+                            <span 
+                              className="author-badge"
+                              style={{ 
+                                backgroundColor: adjustColorOpacity(authorColor, 0.15),
+                                color: authorColor,
+                                border: `1px solid ${adjustColorOpacity(authorColor, 0.3)}`
+                              }}
+                            >
+                              {commit.author}
+                            </span>
+                            <button
+                              type="button"
+                              className="hash-clean"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(commit.hash);
+                              }}
+                              title="Copy commit hash"
+                            >
+                              {commit.hash.slice(0, 7)}
+                            </button>
+                          </div>
                         </div>
                         
                         {stats.files > 0 && (
@@ -334,8 +428,41 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
                             <span className="files-count">
                               {stats.files} file{stats.files > 1 ? 's' : ''}
                             </span>
-                            {stats.additions > 0 && <span className="additions">+{stats.additions}</span>}
-                            {stats.deletions > 0 && <span className="deletions">-{stats.deletions}</span>}
+                            {stats.additions > 0 && (
+                              <span 
+                                className="additions"
+                                style={{ 
+                                  backgroundColor: adjustColorOpacity('#30D158', 0.15),
+                                  color: '#30D158',
+                                  border: `1px solid ${adjustColorOpacity('#30D158', 0.3)}`
+                                }}
+                              >
+                                +{stats.additions}
+                              </span>
+                            )}
+                            {stats.deletions > 0 && (
+                              <span 
+                                className="deletions"
+                                style={{ 
+                                  backgroundColor: adjustColorOpacity('#FF453A', 0.15),
+                                  color: '#FF453A',
+                                  border: `1px solid ${adjustColorOpacity('#FF453A', 0.3)}`
+                                }}
+                              >
+                                -{stats.deletions}
+                              </span>
+                            )}
+                            <span 
+                              className="activity-indicator"
+                              style={{ 
+                                backgroundColor: adjustColorOpacity(activityColor, 0.15),
+                                color: activityColor,
+                                border: `1px solid ${adjustColorOpacity(activityColor, 0.3)}`
+                              }}
+                            >
+                              {stats.additions + stats.deletions > 50 ? 'High' : 
+                               stats.additions + stats.deletions > 20 ? 'Med' : 'Low'} Activity
+                            </span>
                           </div>
                         )}
                       </div>

@@ -20,6 +20,7 @@ import { ChevronUp, ChevronDown, Search, X } from "lucide-react";
 import { useRef } from "react";
 import RecentRepoCard from "./components/RecentReposList";
 import AppHeader from "./components/AppHeader";
+import { getFileTypeColor } from "./utils/colorUtils";
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
@@ -365,10 +366,22 @@ function FileCard({
     <button
       type="button"
       key={file}
-      className={`file-card${idx === focusedResult ? " focused" : ""}`}
+      className={`file-card hover-lift focus-ring${idx === focusedResult ? " focused" : ""}`}
       onClick={() => selectFile(file)}
+      style={{
+        animationDelay: `${idx * 0.02}s`
+      }}
     >
-      <div className="file-icon">{getFileIcon(file)}</div>
+      <div className="file-icon-container animate-fade-in-fast">
+        <div 
+          className="file-type-indicator"
+          style={{ backgroundColor: getFileTypeColor(file) }}
+          title={`${file.split('.').pop()?.toUpperCase()} file`}
+        >
+          {file.split('.').pop()?.charAt(0).toUpperCase() || 'F'}
+        </div>
+        {getFileIcon(file)}
+      </div>
       <div className="file-details">
         <div className="file-name">
           {highlightMatch(file.split("/").pop() || "", searchTerm)}

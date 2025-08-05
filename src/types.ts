@@ -1,9 +1,18 @@
+export interface CommitFile {
+  filename: string;
+  status: 'added' | 'modified' | 'deleted' | 'renamed';
+  additions?: number;
+  deletions?: number;
+  patch?: string;
+}
+
 export interface Commit {
   hash: string;
   author: string;
   date: string;
   message: string;
   content: string;
+  files?: CommitFile[];
   stats?: {
     additions: number;
     deletions: number;
