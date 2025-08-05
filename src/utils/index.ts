@@ -100,29 +100,118 @@ export async function getGitHistoryWithContent(
           filePath,
           commitHash: entry.hash,
         });
-        withContent.push({ ...entry, content });
-      } catch (e) {
-        console.error(`Could not fetch content for ${entry.hash}`, e);
         withContent.push({
           ...entry,
-          content: "// Error loading file content",
+          content,
+        });
+      } catch (error) {
+        console.warn(`Failed to get content for commit ${entry.hash}:`, error);
+        withContent.push({
+          ...entry,
+          content: "Content not available",
         });
       }
     }
-
     return withContent;
   } catch (error) {
-    console.error("Error loading history", error);
+    console.error("Error getting git history:", error);
     return [];
+  }
+}
+
+// New Git operations for enhanced file selection
+export async function getGitBranches(repoPath: string): Promise<string[]> {
+  try {
+    const branches = await invoke<string[]>("get_git_branches", { repoPath });
+    return branches;
+  } catch (error) {
+    console.error("Error getting git branches:", error);
+    return [];
+  }
+}
+
+export async function getGitCommits(repoPath: string, limit?: number): Promise<Commit[]> {
+  try {
+    const raw = await invoke<string>("get_git_commits", { 
+      repoPath, 
+      limit: limit || 50 
+    });
+    
+    const commits = raw
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        const [hash, author, date, message] = line.split("|");
+        return { 
+          hash, 
+          author, 
+          date, 
+          message,
+          content: "" // Branch commits don't have file content
+        };
+      });
+    
+    return commits;
+  } catch (error) {
+    console.error("Error getting git commits:", error);
+    return [];
+  }
+}
+
+export async function getBranchHistory(repoPath: string, branchName: string): Promise<Commit[]> {
+  try {
+    const raw = await invoke<string>("get_branch_history", { 
+      repoPath, 
+      branchName 
+    });
+    
+    const commits = raw
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        const [hash, author, date, message] = line.split("|");
+        return { 
+          hash, 
+          author, 
+          date, 
+          message,
+          content: "" // Branch commits don't have file content
+        };
+      });
+    
+    return commits;
+  } catch (error) {
+    console.error("Error getting branch history:", error);
+    return [];
+  }
+}
+
+export async function createVirtualBranch(
+  repoPath: string, 
+  baseCommit: string, 
+  branchName: string
+): Promise<string> {
+  try {
+    const result = await invoke<string>("create_virtual_branch", {
+      repoPath,
+      baseCommit,
+      branchName,
+    });
+    return result;
+  } catch (error) {
+    console.error("Error creating virtual branch:", error);
+    throw error;
   }
 }
 
 export async function getDirectoryFiles(dirPath: string): Promise<string[]> {
   try {
-    const files = await invoke<string[]>("list_directory_files", { dirPath });
+    const files = await invoke<string[]>("list_directory_files", {
+      dirPath,
+    });
     return files;
   } catch (error) {
-    console.error("Error listing directory files", error);
+    console.error("Error getting directory files:", error);
     return [];
   }
 }

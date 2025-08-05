@@ -10,6 +10,10 @@ import {
   addRecentRepository,
   removeRecentRepository,
   clearRecentRepositories,
+  getGitBranches,
+  getGitCommits,
+  getBranchHistory,
+  createVirtualBranch,
 } from "./utils/index";
 import { CarouselView, ImmersiveView } from "./views";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -22,6 +26,8 @@ import AppHeader from "./components/AppHeader";
 import { FilePicker } from "./components/FilePicker";
 import { getFileTypeColor } from "./utils/colorUtils";
 import { FileIcon } from "./components/FileIcon";
+import FileSelectionMode from "./components/FileSelectionMode";
+import Notification from "./components/Notification";
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
@@ -29,6 +35,11 @@ function App() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [commits, setCommits] = useState<Commit[]>([]);
   const [recentRepos, setRecentRepos] = useState<RecentRepository[]>([]);
+  const [currentMode, setCurrentMode] = useState<'file' | 'branch'>('file');
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'success' | 'error';
+  } | null>(null);
 
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [fileHistorySearchQuery, setFileHistorySearchQuery] = useState<string>("");
@@ -40,14 +51,13 @@ function App() {
     setRecentRepos(getRecentRepositories());
   }, []);
 
-
-
   async function openRepository(repoPath: string) {
     setDirectory(repoPath);
     const files = await getDirectoryFiles(repoPath);
     setAvailableFiles(files);
     setSelectedFile(null);
     setCommits([]);
+    setCurrentMode('file');
 
     // Add to recent repositories
     addRecentRepository(repoPath, files.length);
@@ -69,8 +79,51 @@ function App() {
 
     const fullPath = `${directory}/${fileName}`;
     setSelectedFile(fullPath);
+    setCurrentMode('file');
     const history = await getGitHistoryWithContent(fullPath);
     setCommits(history);
+  }
+
+  async function selectBranch(branchName: string) {
+    if (!directory) return;
+
+    setSelectedFile(null);
+    setCurrentMode('branch');
+    const history = await getBranchHistory(directory, branchName);
+    setCommits(history);
+  }
+
+  async function selectCommit(commitHash: string) {
+    if (!directory) return;
+
+    setSelectedFile(null);
+    setCurrentMode('branch');
+    // For now, we'll get the commit details and show it
+    // In a real implementation, you might want to show the diff or specific file state
+    const allCommits = await getGitCommits(directory, 100);
+    const targetCommit = allCommits.find(c => c.hash === commitHash);
+    if (targetCommit) {
+      setCommits([targetCommit]);
+    }
+  }
+
+  async function handleCreateVirtualBranch(baseCommit: string, branchName: string) {
+    if (!directory) return;
+
+    try {
+      const result = await createVirtualBranch(directory, baseCommit, branchName);
+      console.log('Virtual branch created:', result);
+      setNotification({
+        message: `Virtual branch '${branchName}' created successfully!`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Failed to create virtual branch:', error);
+      setNotification({
+        message: `Failed to create virtual branch: ${error}`,
+        type: 'error'
+      });
+    }
   }
 
   const fileName = selectedFile ? selectedFile.split("/").pop() || "" : "";
@@ -98,30 +151,23 @@ function App() {
     ),
   );
 
-  // Flatten filtered files for keyboard navigation
-  const flatResults: { category: string; file: string }[] = [];
-  Object.entries(filteredFiles).forEach(([category, files]) => {
-    files.forEach((file) => flatResults.push({ category, file }));
-  });
+  const flatResults = Object.entries(filteredFiles).flatMap(([category, files]) =>
+    files.map((file) => ({ category, file }))
+  );
 
   const [focusedResult, setFocusedResult] = useState(0);
 
-  // Reset focus when searchTerm or results change
-  useEffect(() => {
-    setFocusedResult(0);
-  }, []);
-
-  // Helper to highlight search matches
   function highlightMatch(text: string, query: string) {
-    if (!query) return text;
+    if (!query.trim()) return text;
     const index = text.toLowerCase().indexOf(query.toLowerCase());
     if (index === -1) return text;
+
     return (
       <>
         {text.substring(0, index)}
-        <span className="highlight">
+        <mark className="bg-yellow-200 dark:bg-yellow-800">
           {text.substring(index, index + query.length)}
-        </span>
+        </mark>
         {text.substring(index + query.length)}
       </>
     );
@@ -149,6 +195,13 @@ function App() {
 
   return (
     <div className="app-container">
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
       <AppHeader
         setDirectory={(path) => setDirectory(path!)}
         directory={directory!}
@@ -179,204 +232,36 @@ function App() {
             />
           )}
         </div>
-      ) : !selectedFile ? (
-        <div className="file-selection">
-          <div className="selection-header">
-            <h2>Choose a File</h2>
-            <p>{availableFiles.length} files found</p>
-            <div className="search-wrapper flex justify-center p-2 w-full">
-              <div className="input-group flex w-[400px] items-center gap-1 bg-background rounded-md border border-input px-2 py-1 shadow-xs">
-                <Input
-                  ref={inputRef}
-                  className="flex-1 border-none bg-transparent focus:ring-0 focus-visible:ring-0 focus:outline-none"
-                  placeholder="Search for file"
-                  onChange={handleSearch}
-                  value={searchTerm}
-                  onKeyDown={handleSearchKeyDown}
-                  autoFocus
-                />
-                {searchTerm && flatResults.length > 0 && (
-                  <>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setFocusedResult((prev) => Math.max(prev - 1, 0));
-                        inputRef.current?.focus();
-                      }}
-                      disabled={focusedResult === 0}
-                      title="Previous result (↑)"
-                      tabIndex={-1}
-                      className="nav-btn"
-                    >
-                      <CaretUp className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setFocusedResult((prev) =>
-                          Math.min(prev + 1, flatResults.length - 1),
-                        );
-                        inputRef.current?.focus();
-                      }}
-                      disabled={focusedResult === flatResults.length - 1}
-                      title="Next result (↓)"
-                      tabIndex={-1}
-                      className="nav-btn"
-                    >
-                      <CaretDown className="w-4 h-4" />
-                    </Button>
-                  </>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setSearchTerm("")}
-                  title="Clear search"
-                  tabIndex={-1}
-                  style={{ visibility: searchTerm ? "visible" : "hidden" }}
-                  className="clear-btn"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    const result = flatResults[focusedResult];
-                    if (result) selectFile(result.file);
-                  }}
-                  disabled={flatResults.length === 0}
-                  title="Jump to result (Enter)"
-                  tabIndex={-1}
-                  className="search-btn"
-                >
-                  <MagnifyingGlass className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="file-categories">
-            {Object.keys(filteredFiles).map((category) => {
-              if (
-                !filteredFiles[category] ||
-                filteredFiles[category].length === 0
-              )
-                return null;
-              return (
-                <div key={category} className="file-category">
-                  <div className="category-header">
-                    <h3>{category}</h3>
-                    <span className="category-count">
-                      {filteredFiles[category].length}
-                    </span>
-                  </div>
-                  <div className="category-files">
-                    {filteredFiles[category].map((file) => {
-                      // Find the index in flatResults
-                      const idx = flatResults.findIndex(
-                        (r) => r.category === category && r.file === file,
-                      );
-                      return (
-                        <FileCard
-                          key={file}
-                          file={file}
-                          idx={idx}
-                          focusedResult={focusedResult}
-                          selectFile={selectFile}
-                          searchTerm={searchTerm}
-                          highlightMatch={highlightMatch}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-            {Object.keys(filteredFiles).length === 0 && (
-              <div className="no-results text-center text-gray-500 mt-8">
-                No files match your search.
-              </div>
-            )}
-          </div>
-
-        </div>
-              ) : (
-          <ErrorBoundary 
-            onError={(error, errorInfo) => {
-              console.error('View Error:', error, errorInfo);
-            }}
-          >
-            {viewMode === 'immersive' ? (
-              <ImmersiveView 
-                commits={filteredCommits} 
-                fileName={fileName}
-              />
-            ) : (
-              <CarouselView 
-                commits={filteredCommits} 
-                fileName={fileName}
-                cardsToShow={cardsToShow}
-              />
-            )}
-          </ErrorBoundary>
-        )}
-    </div>
-  );
-}
-
-function FileCard({
-  file,
-  idx,
-  focusedResult,
-  selectFile,
-  searchTerm,
-  highlightMatch,
-}: {
-  file: string;
-  idx: number;
-  focusedResult: number;
-  selectFile: (file: string) => void;
-  searchTerm: string;
-  highlightMatch: (text: string, query: string) => React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      key={file}
-      className={`file-card hover-lift focus-ring${idx === focusedResult ? " focused" : ""}`}
-      onClick={() => selectFile(file)}
-      style={{
-        animationDelay: `${idx * 0.02}s`
-      }}
-    >
-      <div className="file-icon-container animate-fade-in-fast">
-        <div 
-          className="file-type-indicator"
-          style={{ backgroundColor: getFileTypeColor(file) }}
-          title={`${file.split('.').pop()?.toUpperCase()} file`}
+      ) : !selectedFile && currentMode === 'file' ? (
+        <FileSelectionMode
+          availableFiles={availableFiles}
+          onFileSelect={selectFile}
+          onBranchSelect={selectBranch}
+          onCommitSelect={selectCommit}
+          onCreateVirtualBranch={handleCreateVirtualBranch}
+          directory={directory}
+        />
+      ) : (
+        <ErrorBoundary 
+          onError={(error, errorInfo) => {
+            console.error('View Error:', error, errorInfo);
+          }}
         >
-          {file.split('.').pop()?.charAt(0).toUpperCase() || 'F'}
-        </div>
-        <FileIcon fileName={file} size={20} className="text-muted-foreground" />
-      </div>
-      <div className="file-details">
-        <div className="file-name">
-          {highlightMatch(file.split("/").pop() || "", searchTerm)}
-        </div>
-        {file.includes("/") && (
-          <div className="file-path">
-            {file.substring(0, file.lastIndexOf("/"))}/
-          </div>
-        )}
-      </div>
-    </button>
+          {viewMode === 'immersive' ? (
+            <ImmersiveView 
+              commits={filteredCommits} 
+              fileName={fileName}
+            />
+          ) : (
+            <CarouselView 
+              commits={filteredCommits} 
+              fileName={fileName}
+              cardsToShow={cardsToShow}
+            />
+          )}
+        </ErrorBoundary>
+      )}
+    </div>
   );
 }
 

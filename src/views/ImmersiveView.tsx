@@ -36,9 +36,17 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
 
 
   
-  // Scroll progress tracking with proper ref handling
+  // Scroll progress tracking - delayed until container is mounted
+  const [isContainerReady, setIsContainerReady] = useState(false);
+  
+  useEffect(() => {
+    if (containerRef.current) {
+      setIsContainerReady(true);
+    }
+  }, []);
+
   const { scrollYProgress } = useScroll({
-    container: containerRef,
+    ...(isContainerReady && containerRef.current ? { container: containerRef } : {}),
     offset: ["start start", "end end"],
     layoutEffect: false
   });
