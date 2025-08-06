@@ -17,6 +17,9 @@ export interface Commit {
     additions: number;
     deletions: number;
   };
+  parents?: string[];
+  branches?: string[];
+  tags?: string[];
 }
 
 export interface GitFileStatus {
@@ -77,4 +80,83 @@ export interface RecentRepository {
   lastAccessed: string; // ISO date string
   fileCount?: number;
   description?: string;
+}
+
+// New types for enhanced features
+export interface GitGraphNode {
+  hash: string;
+  author: string;
+  date: string;
+  message: string;
+  parents: string[];
+  children: string[];
+  branches: string[];
+  tags: string[];
+  x: number;
+  y: number;
+}
+
+export interface GitGraph {
+  nodes: GitGraphNode[];
+  edges: Array<{
+    from: string;
+    to: string;
+    edge_type: 'parent' | 'merge' | 'rebase';
+  }>;
+}
+
+export interface RepositoryAnalytics {
+  commitFrequency: {
+    daily: number;
+    weekly: number;
+    monthly: number;
+  };
+  topAuthors: Array<{
+    name: string;
+    commits: number;
+    additions: number;
+    deletions: number;
+  }>;
+  fileChangePatterns: Array<{
+    file: string;
+    changes: number;
+    lastModified: string;
+    churn: number;
+  }>;
+  branchActivity: Array<{
+    name: string;
+    commits: number;
+    lastCommit: string;
+    isActive: boolean;
+  }>;
+  technicalDebt: Array<{
+    file: string;
+    issues: string[];
+    severity: 'low' | 'medium' | 'high';
+  }>;
+}
+
+export interface ConflictResolution {
+  file: string;
+  conflicts: Array<{
+    start: number;
+    end: number;
+    ours: string;
+    theirs: string;
+    base: string;
+  }>;
+  resolved: boolean;
+}
+
+export interface Notification {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title: string;
+  message: string;
+  action?: {
+    label: string;
+    handler: () => void;
+  };
+  dismissible: boolean;
+  autoDismiss?: number;
 }

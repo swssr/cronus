@@ -25,6 +25,7 @@ interface FileSelectionModeProps {
   onCommitSelect: (commitHash: string) => void;
   onCreateVirtualBranch: (baseCommit: string, name: string) => void;
   directory: string;
+  currentMode?: 'file' | 'branch' | 'commit' | 'graph' | 'analytics' | 'conflicts';
 }
 
 interface SearchResult {
@@ -46,7 +47,8 @@ export default function FileSelectionMode({
   onBranchSelect,
   onCommitSelect,
   onCreateVirtualBranch,
-  directory
+  directory,
+  currentMode = 'file'
 }: FileSelectionModeProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [focusedResult, setFocusedResult] = useState(0);
@@ -59,7 +61,6 @@ export default function FileSelectionMode({
   const [focusMode, setFocusMode] = useState<'include' | 'exclude'>('include');
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [excludedFiles, setExcludedFiles] = useState<Set<string>>(new Set());
-  const [mode] = useState<'file' | 'branch'>('file');
   
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -98,16 +99,15 @@ export default function FileSelectionMode({
         let score = 0;
         
         // Exact match gets highest score
-        if (fileName.toLowerCase() === queryLower) score += 100;
-        else if (fileName.toLowerCase().startsWith(queryLower)) score += 50;
-        else if (fileName.toLowerCase().includes(queryLower)) score += 25;
-        
-        // Path matching
-        if (filePath.includes(queryLower)) score += 10;
-        
-        // Extension matching
-        const ext = fileName.split('.').pop()?.toLowerCase();
-        if (ext === queryLower) score += 30;
+        if (fileName.toLowerCase() === queryLower) {
+          score += 100;
+        } else if (fileName.toLowerCase().startsWith(queryLower)) {
+          score += 50;
+        } else if (fileName.toLowerCase().includes(queryLower)) {
+          score += 25;
+        } else if (filePath.includes(queryLower)) {
+          score += 10;
+        }
         
         if (score > 0) {
           results.push({ file, category, score });
@@ -122,7 +122,7 @@ export default function FileSelectionMode({
 
   // Load branches and commits when switching to branch mode
   useEffect(() => {
-    if (mode === 'branch' && branches.length === 0) {
+    if (currentMode === 'branch' && branches.length === 0) {
         const loadBranchesAndCommits = async () => {
     try {
       // Load branches and commits from the backend
@@ -145,22 +145,22 @@ export default function FileSelectionMode({
       
       loadBranchesAndCommits();
     }
-  }, [mode, branches.length, directory]);
+  }, [currentMode, branches.length, directory]);
 
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (mode === 'file' && searchResults.length === 0) return;
-    if (mode === 'branch' && commits.length === 0) return;
+    if (currentMode === 'file' && searchResults.length === 0) return;
+    if (currentMode === 'branch' && commits.length === 0) return;
     
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      const maxIndex = mode === 'file' ? searchResults.length - 1 : commits.length - 1;
+      const maxIndex = currentMode === 'file' ? searchResults.length - 1 : commits.length - 1;
       setFocusedResult((prev) => Math.min(prev + 1, maxIndex));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setFocusedResult((prev) => Math.max(prev - 1, 0));
     } else if (event.key === "Enter") {
       event.preventDefault();
-      if (mode === 'file') {
+      if (currentMode === 'file') {
         const result = searchResults[focusedResult];
         if (result) onFileSelect(result.file);
       } else {

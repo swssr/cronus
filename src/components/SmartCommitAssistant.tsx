@@ -427,8 +427,8 @@ export default function SmartCommitAssistant({
               No changes to commit. Start editing files to see them here.
             </p>
           </motion.div>
-        )}
+        )} 
       </div>
     </motion.div>
   );
-} 
+}

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Commit, RecentRepository, GitStatus, CommitSuggestion } from "../types";
+import { Commit, RecentRepository, GitStatus, CommitSuggestion, GitGraph, RepositoryAnalytics, ConflictResolution } from "../types";
 
 const RECENT_REPOS_KEY = "cronus_recent_repositories";
 const MAX_RECENT_REPOS = 10;
@@ -204,48 +204,7 @@ export async function createVirtualBranch(
   }
 }
 
-export async function applyVirtualBranch(
-  repoPath: string, 
-  branchName: string
-): Promise<string> {
-  try {
-    const result = await invoke<string>("apply_virtual_branch", {
-      repoPath,
-      branchName,
-    });
-    return result;
-  } catch (error) {
-    console.error("Error applying virtual branch:", error);
-    throw error;
-  }
-}
 
-export async function getVirtualBranches(repoPath: string): Promise<string[]> {
-  try {
-    const branches = await invoke<string[]>("get_virtual_branches", {
-      repoPath,
-    });
-    return branches;
-  } catch (error) {
-    console.error("Error getting virtual branches:", error);
-    return [];
-  }
-}
-
-export async function deleteVirtualBranch(
-  repoPath: string, 
-  branchName: string
-): Promise<void> {
-  try {
-    await invoke<void>("delete_virtual_branch", {
-      repoPath,
-      branchName,
-    });
-  } catch (error) {
-    console.error("Error deleting virtual branch:", error);
-    throw error;
-  }
-}
 
 export async function getDirectoryFiles(dirPath: string): Promise<string[]> {
   try {
@@ -537,6 +496,47 @@ export async function getStagedDiff(repoPath: string, filePath: string): Promise
   }
 }
 
+export async function getGitGraph(repoPath: string): Promise<GitGraph> {
+  try {
+    const graph = await invoke<GitGraph>("get_git_graph", { repoPath });
+    return graph;
+  } catch (error) {
+    console.error("Error getting git graph:", error);
+    throw error;
+  }
+}
+
+export async function getRepositoryAnalytics(repoPath: string): Promise<RepositoryAnalytics> {
+  try {
+    const analytics = await invoke<RepositoryAnalytics>("get_repository_analytics", { repoPath });
+    return analytics;
+  } catch (error) {
+    console.error("Error getting repository analytics:", error);
+    throw error;
+  }
+}
+
+export async function getMergeConflicts(repoPath: string): Promise<ConflictResolution[]> {
+  try {
+    const conflicts = await invoke<ConflictResolution[]>("get_merge_conflicts", { repoPath });
+    return conflicts;
+  } catch (error) {
+    console.error("Error getting merge conflicts:", error);
+    throw error;
+  }
+}
+
+export async function resolveConflict(repoPath: string, filePath: string, resolution: string): Promise<void> {
+  try {
+    await invoke<void>("resolve_conflict", { repoPath, filePath, resolution });
+  } catch (error) {
+    console.error("Error resolving conflict:", error);
+    throw error;
+  }
+}
+
+
+
 // Enhanced commit message suggestion with conventional commits
 export function generateCommitSuggestions(stagedFiles: string[]): CommitSuggestion[] {
   const suggestions: CommitSuggestion[] = [];
@@ -603,5 +603,47 @@ export function generateCommitSuggestions(stagedFiles: string[]): CommitSuggesti
   });
   
   return suggestions;
+}
+
+// Utility functions for enhanced features
+export function getTimeAgo(date: string): string {
+  const now = new Date();
+  const past = new Date(date);
+  const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return 'just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
+}
+
+export function getCommitType(message: string): string {
+  const conventionalTypes = ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'perf', 'ci', 'build', 'revert'];
+  const firstWord = message.split(':')[0].toLowerCase();
+  return conventionalTypes.includes(firstWord) ? firstWord : 'other';
+}
+
+export function getCommitColor(type: string): string {
+  const colorMap: Record<string, string> = {
+    feat: '#10b981',
+    fix: '#ef4444',
+    docs: '#3b82f6',
+    style: '#8b5cf6',
+    refactor: '#f59e0b',
+    test: '#06b6d4',
+    chore: '#6b7280',
+    perf: '#ec4899',
+    ci: '#84cc16',
+    build: '#f97316',
+    revert: '#dc2626',
+    other: '#6b7280'
+  };
+  return colorMap[type] || colorMap.other;
+}
+
+export function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
 }
 

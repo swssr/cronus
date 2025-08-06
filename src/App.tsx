@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import "./App.css";
-import { Commit, RecentRepository, GitStatus } from "./types";
+import { Commit, RecentRepository, GitStatus, GitGraph, RepositoryAnalytics, ConflictResolution } from "./types";
 import {
   getDirectoryFiles,
   getGitHistoryWithContent,
@@ -12,6 +12,9 @@ import {
   getBranchHistory,
   createVirtualBranch,
   getGitStatus,
+  getGitGraph,
+  getRepositoryAnalytics,
+  getMergeConflicts,
 } from "./utils/index";
 import { CarouselView, EnhancedImmersiveView } from "./views";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -23,6 +26,9 @@ import Notification from "./components/Notification";
 import { ThemeToggle } from "./components/ThemeToggle";
 import SmartCommitAssistant from "./components/SmartCommitAssistant";
 import HelpOverlay from "./components/HelpOverlay";
+import { GitGraphVisualization } from "./components/GitGraphVisualization";
+import { RepositoryAnalyticsComponent } from "./components/RepositoryAnalytics";
+import { ConflictResolver } from "./components/ConflictResolver";
 import React from "react";
 
 // Theme context and provider
@@ -93,13 +99,19 @@ function AppContent() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [commits, setCommits] = useState<Commit[]>([]);
   const [recentRepos, setRecentRepos] = useState<RecentRepository[]>([]);
-  const [currentMode, setCurrentMode] = useState<'file' | 'branch' | 'commit'>('file');
+  const [currentMode, setCurrentMode] = useState<'file' | 'branch' | 'commit' | 'graph' | 'analytics' | 'conflicts'>('file');
   const [notification, setNotification] = useState<{
     message: string;
     type: 'success' | 'error';
   } | null>(null);
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+
+  // New state for enhanced features
+  const [gitGraph, setGitGraph] = useState<GitGraph | null>(null);
+  const [repositoryAnalytics, setRepositoryAnalytics] = useState<RepositoryAnalytics | null>(null);
+  const [mergeConflicts, setMergeConflicts] = useState<ConflictResolution[]>([]);
+  const [selectedGraphNodes, setSelectedGraphNodes] = useState<Set<string>>(new Set());
 
   const [fileHistorySearchQuery, setFileHistorySearchQuery] = useState<string>("");
   const [viewMode, setViewMode] = useState<'carousel' | 'immersive'>('immersive');
@@ -117,6 +129,42 @@ function AppContent() {
     }
   }, [directory]);
 
+  const loadGitGraph = useCallback(async () => {
+    if (!directory) return;
+    
+    try {
+      const graph = await getGitGraph(directory);
+      setGitGraph(graph);
+    } catch (error) {
+      console.error('Failed to load git graph:', error);
+      setGitGraph(null);
+    }
+  }, [directory]);
+
+  const loadRepositoryAnalytics = useCallback(async () => {
+    if (!directory) return;
+    
+    try {
+      const analytics = await getRepositoryAnalytics(directory);
+      setRepositoryAnalytics(analytics);
+    } catch (error) {
+      console.error('Failed to load repository analytics:', error);
+      setRepositoryAnalytics(null);
+    }
+  }, [directory]);
+
+  const loadMergeConflicts = useCallback(async () => {
+    if (!directory) return;
+    
+    try {
+      const conflicts = await getMergeConflicts(directory);
+      setMergeConflicts(conflicts);
+    } catch (error) {
+      console.error('Failed to load merge conflicts:', error);
+      setMergeConflicts([]);
+    }
+  }, [directory]);
+
   // Load recent repositories on component mount
   useEffect(() => {
     setRecentRepos(getRecentRepositories());
@@ -126,8 +174,11 @@ function AppContent() {
   useEffect(() => {
     if (directory) {
       loadGitStatus();
+      loadGitGraph();
+      loadRepositoryAnalytics();
+      loadMergeConflicts();
     }
-  }, [directory, loadGitStatus]);
+  }, [directory, loadGitStatus, loadGitGraph, loadRepositoryAnalytics, loadMergeConflicts]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -227,6 +278,32 @@ function AppContent() {
     loadGitStatus();
   };
 
+  const handleGraphNodeClick = (node: any) => {
+    console.log('Graph node clicked:', node);
+    // You can implement navigation to the specific commit here
+  };
+
+  const handleGraphNodeSelect = (node: any) => {
+    setSelectedGraphNodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(node.hash)) {
+        newSet.delete(node.hash);
+      } else {
+        newSet.add(node.hash);
+      }
+      return newSet;
+    });
+  };
+
+  const handleConflictResolved = (filePath: string) => {
+    setNotification({
+      message: `Conflict in ${filePath} resolved successfully!`,
+      type: 'success'
+    });
+    // Refresh conflicts
+    loadMergeConflicts();
+  };
+
   const fileName = selectedFile ? selectedFile.split("/").pop() || "" : "";
 
   // Filter commits for file history search
@@ -296,6 +373,47 @@ function AppContent() {
             />
           )}
         </div>
+      ) : currentMode === 'graph' ? (
+        <div className="graph-mode-container p-6">
+          {gitGraph ? (
+            <GitGraphVisualization
+              graph={gitGraph}
+              onNodeClick={handleGraphNodeClick}
+              onNodeSelect={handleGraphNodeSelect}
+              selectedNodes={selectedGraphNodes}
+            />
+          ) : (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-8 h-8 border-2 border-slate-300 dark:border-slate-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+              <p className="text-slate-600 dark:text-slate-400">Loading git graph...</p>
+            </div>
+          )}
+        </div>
+      ) : currentMode === 'analytics' ? (
+        <div className="analytics-mode-container p-6">
+          {repositoryAnalytics ? (
+            <RepositoryAnalyticsComponent
+              analytics={repositoryAnalytics}
+            />
+          ) : (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-8 h-8 border-2 border-slate-300 dark:border-slate-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+              <p className="text-slate-600 dark:text-slate-400">Loading repository analytics...</p>
+            </div>
+          )}
+        </div>
+      ) : currentMode === 'conflicts' ? (
+        <div className="conflicts-mode-container p-6">
+          <ConflictResolver
+            conflicts={mergeConflicts}
+            repoPath={directory}
+            onConflictResolved={handleConflictResolved}
+          />
+        </div>
       ) : !selectedFile && currentMode === 'file' ? (
         <FileSelectionMode
           availableFiles={availableFiles}
@@ -304,6 +422,7 @@ function AppContent() {
           onCommitSelect={selectCommit}
           onCreateVirtualBranch={handleCreateVirtualBranch}
           directory={directory}
+          currentMode={currentMode}
         />
       ) : (
         <ErrorBoundary 

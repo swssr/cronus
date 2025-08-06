@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, useScroll, useTransform, useSpring, AnimatePresence } from "framer-motion";
-import type { Commit } from "../types";
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion';
+import { CardActions } from '../components/CardActions';
+import { Commit } from '../types';
+import { invoke } from '@tauri-apps/api/core';
 import { Editor } from "@monaco-editor/react";
 import { getFileLanguage } from "../utils/index";
 import { useMomentumScroll } from "../hooks/useMomentumScroll";
 import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
-import { CardActions } from "../components/CardActions";
 import { CommitStatsVisualization } from "../components/CommitStatsVisualization";
 import { 
   getAuthorColor, 
@@ -158,31 +159,77 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
   }, [commits.length, scrollToItem]);
 
   // Handle card actions
-  const handleCardAction = useCallback((action: string, commit: Commit) => {
+  const handleCardAction = useCallback(async (action: string, commit: Commit) => {
     switch (action) {
       case 'copy-hash':
-        navigator.clipboard.writeText(commit.hash).catch(console.error);
+        try {
+          await navigator.clipboard.writeText(commit.hash);
+          console.log('Hash copied to clipboard:', commit.hash);
+        } catch (error) {
+          console.error('Failed to copy hash:', error);
+        }
         break;
       case 'view-diff':
-        // TODO: Implement diff view
-        console.log('View diff for:', commit.hash);
+        try {
+          // Get the diff for this commit
+          const diff = await invoke<string>("get_file_diff", {
+            repoPath: fileName.split('/').slice(0, -1).join('/'),
+            filePath: fileName.split('/').pop() || ''
+          });
+          console.log('Diff for commit', commit.hash, ':', diff);
+          // TODO: Show diff in a modal or new view
+        } catch (error) {
+          console.error('Failed to get diff:', error);
+        }
         break;
       case 'checkout':
-        // TODO: Implement checkout
-        console.log('Checkout:', commit.hash);
+        try {
+          // Checkout the specific commit
+          const result = await invoke<string>("checkout_commit", {
+            repoPath: fileName.split('/').slice(0, -1).join('/'),
+            commitHash: commit.hash
+          });
+          console.log('Checked out commit:', result);
+        } catch (error) {
+          console.error('Failed to checkout commit:', error);
+        }
         break;
       case 'open-external':
-        // TODO: Implement external open
-        console.log('Open external:', commit.hash);
+        try {
+          // Open in external git tool
+          await invoke("open_external", {
+            url: `git://${fileName.split('/').slice(0, -1).join('/')}?commit=${commit.hash}`
+          });
+        } catch (error) {
+          console.error('Failed to open external:', error);
+        }
         break;
       case 'download':
-        // TODO: Implement download
-        console.log('Download file at:', commit.hash);
+        try {
+          // Download file content at this commit
+          const content = await invoke<string>("get_git_file_at_commit", {
+            filePath: fileName,
+            commitHash: commit.hash
+          });
+          
+          // Create and download file
+          const blob = new Blob([content], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${fileName.split('/').pop()}_${commit.hash}.txt`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error('Failed to download file:', error);
+        }
         break;
       default:
         console.log('Unknown action:', action);
     }
-  }, []);
+  }, [fileName]);
 
   // Copy to clipboard utility
   const copyToClipboard = useCallback((text: string) => {
@@ -235,7 +282,7 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
         transition={{ delay: 0.2 }}
         title="Toggle Statistics"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-label="Statistics">
           <path d="M1.5 13A1.5 1.5 0 003 14.5h10a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3A1.5 1.5 0 001.5 6v7zM3 6a.5.5 0 01.5-.5h9a.5.5 0 01.5.5v7a.5.5 0 01-.5.5h-9A.5.5 0 013 13V6z"/>
           <path d="M5 9.5a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5z"/>
           <rect x="9" y="7" width="1" height="3" rx="0.5"/>
@@ -266,10 +313,11 @@ export function ImmersiveView({ commits, fileName }: ImmersiveViewProps) {
               <div className="stats-panel-header">
                 <h3>Repository Statistics</h3>
                 <button 
+                  type="button"
                   className="stats-close-button"
                   onClick={() => setShowStats(false)}
                 >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-label="Close">
                     <path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z"/>
                   </svg>
                 </button>

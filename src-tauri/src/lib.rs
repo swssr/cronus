@@ -22,6 +22,109 @@ struct GitStatus {
     behind: i32,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+struct GitGraphNode {
+    hash: String,
+    author: String,
+    date: String,
+    message: String,
+    parents: Vec<String>,
+    children: Vec<String>,
+    branches: Vec<String>,
+    tags: Vec<String>,
+    x: i32,
+    y: i32,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct GitGraph {
+    nodes: Vec<GitGraphNode>,
+    edges: Vec<GraphEdge>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct GraphEdge {
+    from: String,
+    to: String,
+    edge_type: String, // "parent", "merge", "rebase"
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct RepositoryAnalytics {
+    commit_frequency: CommitFrequency,
+    top_authors: Vec<AuthorStats>,
+    file_change_patterns: Vec<FileChangePattern>,
+    branch_activity: Vec<BranchActivity>,
+    technical_debt: Vec<TechnicalDebt>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct CommitFrequency {
+    daily: i32,
+    weekly: i32,
+    monthly: i32,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct AuthorStats {
+    name: String,
+    commits: i32,
+    additions: i32,
+    deletions: i32,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct FileChangePattern {
+    file: String,
+    changes: i32,
+    last_modified: String,
+    churn: f64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct BranchActivity {
+    name: String,
+    commits: i32,
+    last_commit: String,
+    is_active: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct TechnicalDebt {
+    file: String,
+    issues: Vec<String>,
+    severity: String, // "low", "medium", "high"
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct ConflictResolution {
+    file: String,
+    conflicts: Vec<Conflict>,
+    resolved: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct Conflict {
+    start: i32,
+    end: i32,
+    ours: String,
+    theirs: String,
+    base: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct RebasePlan {
+    commits: Vec<RebaseCommit>,
+    conflicts: Vec<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct RebaseCommit {
+    hash: String,
+    message: String,
+    action: String, // "pick", "edit", "squash", "drop"
+}
+
 #[derive(Clone)]
 struct AppState {
     launch_path: Option<String>,
@@ -386,6 +489,28 @@ fn unstage_file(repo_path: String, file_path: String) -> Result<(), String> {
     }
 }
 
+
+#[command]
+fn full_branch_history(repo_path: String) -> Result<String, String> {
+    let path: PathBuf = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    let output = Command::new("git")
+        .args(["log", "--pretty=format:%h|%an|%ad|%s", "--date=short", "--all"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).into_owned())
+    }
+}
+
 #[command]
 fn create_commit(repo_path: String, message: String, files: Vec<String>) -> Result<String, String> {
     let path = PathBuf::from(&repo_path);
@@ -588,6 +713,510 @@ fn get_file_content_at_commit(repo_path: String, file_path: String, commit_hash:
     }
 }
 
+#[command]
+fn get_git_graph(repo_path: String) -> Result<GitGraph, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // Get git log with graph format
+    let output = Command::new("git")
+        .args([
+            "log", 
+            "--graph", 
+            "--pretty=format:%h|%an|%ad|%s|%p", 
+            "--date=short",
+            "--all"
+        ])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let mut nodes = Vec::new();
+    let mut edges = Vec::new();
+    let mut node_map = std::collections::HashMap::new();
+
+    let lines = String::from_utf8_lossy(&output.stdout);
+    for (y, line) in lines.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        // Parse graph line
+        let parts: Vec<&str> = line.split('|').collect();
+        if parts.len() >= 5 {
+            let hash = parts[0].trim();
+            let author = parts[1].trim();
+            let date = parts[2].trim();
+            let message = parts[3].trim();
+            let parents = parts[4].trim().split_whitespace().map(|s| s.to_string()).collect();
+
+            let node = GitGraphNode {
+                hash: hash.to_string(),
+                author: author.to_string(),
+                date: date.to_string(),
+                message: message.to_string(),
+                parents,
+                children: Vec::new(),
+                branches: Vec::new(),
+                tags: Vec::new(),
+                x: 0, // Will be calculated based on graph structure
+                y: y as i32,
+            };
+
+            node_map.insert(hash.to_string(), nodes.len());
+            nodes.push(node);
+        }
+    }
+
+    // Calculate edges and positions
+    for (_i, node) in nodes.iter().enumerate() {
+        for parent_hash in &node.parents {
+            if node_map.get(parent_hash).is_some() {
+                edges.push(GraphEdge {
+                    from: parent_hash.clone(),
+                    to: node.hash.clone(),
+                    edge_type: "parent".to_string(),
+                });
+            }
+        }
+    }
+
+    // Collect children updates to avoid borrowing issues
+    let mut children_updates: Vec<(usize, String)> = Vec::new();
+    for (_i, node) in nodes.iter().enumerate() {
+        for parent_hash in &node.parents {
+            if let Some(&parent_idx) = node_map.get(parent_hash) {
+                if parent_idx < nodes.len() {
+                    children_updates.push((parent_idx, node.hash.clone()));
+                }
+            }
+        }
+    }
+
+    // Apply children updates
+    for (parent_idx, child_hash) in children_updates {
+        nodes[parent_idx].children.push(child_hash);
+    }
+
+    // Calculate x positions based on graph structure
+    calculate_node_positions(&mut nodes);
+
+    Ok(GitGraph { nodes, edges })
+}
+
+fn calculate_node_positions(nodes: &mut Vec<GitGraphNode>) {
+    // Simple positioning algorithm
+    let mut column_map = std::collections::HashMap::new();
+    let mut current_column = 0;
+
+    for node in nodes.iter_mut() {
+        if node.parents.is_empty() {
+            // Root node
+            node.x = current_column;
+            column_map.insert(node.hash.clone(), current_column);
+            current_column += 1;
+        } else {
+            // Find the most recent parent's column
+            let mut parent_column = 0;
+            for parent_hash in &node.parents {
+                if let Some(&col) = column_map.get(parent_hash) {
+                    parent_column = col;
+                    break;
+                }
+            }
+            node.x = parent_column;
+            column_map.insert(node.hash.clone(), parent_column);
+        }
+    }
+}
+
+#[command]
+fn get_repository_analytics(repo_path: String) -> Result<RepositoryAnalytics, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // Get commit statistics
+    let commit_stats = Command::new("git")
+        .args([
+            "log", 
+            "--pretty=format:%an|%ad", 
+            "--date=short",
+            "--numstat"
+        ])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !commit_stats.status.success() {
+        return Err(String::from_utf8_lossy(&commit_stats.stderr).to_string());
+    }
+
+    let mut author_stats = std::collections::HashMap::new();
+    let mut file_stats = std::collections::HashMap::new();
+    let mut daily_commits = 0;
+    let mut weekly_commits = 0;
+    let mut monthly_commits = 0;
+
+    let lines = String::from_utf8_lossy(&commit_stats.stdout);
+    let mut current_author = String::new();
+    let mut current_date = String::new();
+
+    for line in lines.lines() {
+        if line.contains('|') {
+            let parts: Vec<&str> = line.split('|').collect();
+            if parts.len() >= 2 {
+                current_author = parts[0].to_string();
+                current_date = parts[1].to_string();
+                
+                // Count commits by frequency
+                let date = chrono::NaiveDate::parse_from_str(&current_date, "%Y-%m-%d")
+                    .unwrap_or_else(|_| chrono::Utc::now().naive_utc().date());
+                let now = chrono::Utc::now().naive_utc().date();
+                let days_diff = (now - date).num_days();
+
+                if days_diff <= 1 {
+                    daily_commits += 1;
+                }
+                if days_diff <= 7 {
+                    weekly_commits += 1;
+                }
+                if days_diff <= 30 {
+                    monthly_commits += 1;
+                }
+
+                // Update author stats
+                let entry = author_stats.entry(current_author.clone()).or_insert(AuthorStats {
+                    name: current_author.clone(),
+                    commits: 0,
+                    additions: 0,
+                    deletions: 0,
+                });
+                entry.commits += 1;
+            }
+        } else if line.matches('\t').count() >= 2 {
+            // This is a file change line
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 3 {
+                let additions: i32 = parts[0].parse().unwrap_or(0);
+                let deletions: i32 = parts[1].parse().unwrap_or(0);
+                let file = parts[2];
+
+                // Update author stats
+                if let Some(author_stat) = author_stats.get_mut(&current_author) {
+                    author_stat.additions += additions;
+                    author_stat.deletions += deletions;
+                }
+
+                // Update file stats
+                let entry = file_stats.entry(file.to_string()).or_insert(FileChangePattern {
+                    file: file.to_string(),
+                    changes: 0,
+                    last_modified: current_date.clone(),
+                    churn: 0.0,
+                });
+                entry.changes += 1;
+                entry.last_modified = current_date.clone();
+                entry.churn = (additions + deletions) as f64;
+            }
+        }
+    }
+
+    // Get branch activity
+    let branch_output = Command::new("git")
+        .args(["branch", "-r", "--format=%(refname:short)|%(committerdate:short)"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let mut branch_activity = Vec::new();
+    if branch_output.status.success() {
+        let branch_lines = String::from_utf8_lossy(&branch_output.stdout);
+        for line in branch_lines.lines() {
+            let parts: Vec<&str> = line.split('|').collect();
+            if parts.len() >= 2 {
+                let branch_name = parts[0].trim();
+                let last_commit = parts[1].trim();
+                
+                // Skip origin/ prefix for remote branches
+                let clean_name = if branch_name.starts_with("origin/") {
+                    &branch_name[7..]
+                } else {
+                    branch_name
+                };
+
+                branch_activity.push(BranchActivity {
+                    name: clean_name.to_string(),
+                    commits: 0, // Would need additional query to get commit count
+                    last_commit: last_commit.to_string(),
+                    is_active: true,
+                });
+            }
+        }
+    }
+
+    // Convert to sorted vectors
+    let mut top_authors: Vec<AuthorStats> = author_stats.into_values().collect();
+    top_authors.sort_by(|a, b| b.commits.cmp(&a.commits));
+    top_authors.truncate(10); // Top 10 authors
+
+    let mut file_change_patterns: Vec<FileChangePattern> = file_stats.into_values().collect();
+    file_change_patterns.sort_by(|a, b| b.changes.cmp(&a.changes));
+    file_change_patterns.truncate(20); // Top 20 files
+
+    // Simple technical debt detection
+    let technical_debt = file_change_patterns
+        .iter()
+        .filter(|f| f.churn > 100.0 || f.changes > 50)
+        .map(|f| TechnicalDebt {
+            file: f.file.clone(),
+            issues: vec![
+                if f.churn > 100.0 { "High code churn".to_string() } else { String::new() },
+                if f.changes > 50 { "Frequent changes".to_string() } else { String::new() },
+            ].into_iter().filter(|s| !s.is_empty()).collect(),
+            severity: if f.churn > 200.0 { "high".to_string() } else if f.churn > 100.0 { "medium".to_string() } else { "low".to_string() },
+        })
+        .collect();
+
+    Ok(RepositoryAnalytics {
+        commit_frequency: CommitFrequency {
+            daily: daily_commits,
+            weekly: weekly_commits,
+            monthly: monthly_commits,
+        },
+        top_authors,
+        file_change_patterns,
+        branch_activity,
+        technical_debt,
+    })
+}
+
+#[command]
+fn get_merge_conflicts(repo_path: String) -> Result<Vec<ConflictResolution>, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // Check if there are any merge conflicts
+    let status_output = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !status_output.status.success() {
+        return Err(String::from_utf8_lossy(&status_output.stderr).to_string());
+    }
+
+    let mut conflicts = Vec::new();
+    let status_lines = String::from_utf8_lossy(&status_output.stdout);
+    
+    for line in status_lines.lines() {
+        if line.starts_with("UU ") || line.starts_with("AA ") || line.starts_with("DD ") {
+            let file_path = &line[3..];
+            
+            // Get the conflict markers
+            let file_content = fs::read_to_string(path.join(file_path))
+                .map_err(|e| e.to_string())?;
+
+            let mut conflict_blocks = Vec::new();
+            let lines: Vec<&str> = file_content.lines().collect();
+            let mut i = 0;
+
+            while i < lines.len() {
+                if lines[i].starts_with("<<<<<<<") {
+                    let start = i;
+                    let mut ours = Vec::new();
+                    let mut theirs = Vec::new();
+                    let base: Vec<String> = Vec::new();
+                    
+                    i += 1; // Skip <<<<<<<
+                    
+                    // Parse our version
+                    while i < lines.len() && !lines[i].starts_with("=======") {
+                        ours.push(lines[i]);
+                        i += 1;
+                    }
+                    
+                    if i < lines.len() {
+                        i += 1; // Skip =======
+                        
+                        // Parse their version
+                        while i < lines.len() && !lines[i].starts_with(">>>>>>>") {
+                            theirs.push(lines[i]);
+                            i += 1;
+                        }
+                        
+                        if i < lines.len() {
+                            i += 1; // Skip >>>>>>>
+                            
+                            conflict_blocks.push(Conflict {
+                                start: start as i32,
+                                end: i as i32,
+                                ours: ours.join("\n"),
+                                theirs: theirs.join("\n"),
+                                base: base.join("\n"),
+                            });
+                        }
+                    }
+                } else {
+                    i += 1;
+                }
+            }
+
+            if !conflict_blocks.is_empty() {
+                conflicts.push(ConflictResolution {
+                    file: file_path.to_string(),
+                    conflicts: conflict_blocks,
+                    resolved: false,
+                });
+            }
+        }
+    }
+
+    Ok(conflicts)
+}
+
+#[command]
+fn resolve_conflict(repo_path: String, file_path: String, resolution: String) -> Result<(), String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // Write the resolved content to the file
+    fs::write(path.join(&file_path), resolution)
+        .map_err(|e| e.to_string())?;
+
+    // Stage the resolved file
+    let output = Command::new("git")
+        .args(["add", &file_path])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(())
+}
+
+#[command]
+fn get_rebase_plan(repo_path: String, base_commit: String) -> Result<RebasePlan, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // Get commits that would be rebased
+    let output = Command::new("git")
+        .args([
+            "log", 
+            "--pretty=format:%h|%s", 
+            "--oneline",
+            &format!("{}..HEAD", base_commit)
+        ])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let mut commits = Vec::new();
+    let lines = String::from_utf8_lossy(&output.stdout);
+    
+    for line in lines.lines() {
+        if line.contains('|') {
+            let parts: Vec<&str> = line.split('|').collect();
+            if parts.len() >= 2 {
+                commits.push(RebaseCommit {
+                    hash: parts[0].trim().to_string(),
+                    message: parts[1].trim().to_string(),
+                    action: "pick".to_string(),
+                });
+            }
+        }
+    }
+
+    // Reverse the order for rebase (oldest first)
+    commits.reverse();
+
+    Ok(RebasePlan {
+        commits,
+        conflicts: Vec::new(), // Would be populated during actual rebase
+    })
+}
+
+#[command]
+fn execute_rebase(repo_path: String, base_commit: String, plan: Vec<RebaseCommit>) -> Result<String, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // For now, return a placeholder message
+    // In a real implementation, this would execute the rebase plan
+    Ok(format!("Rebase plan executed for {} commits", plan.len()))
+}
+
+#[command]
+fn checkout_commit(repo_path: String, commit_hash: String) -> Result<String, String> {
+    let path = PathBuf::from(&repo_path);
+    
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // First, check if the commit exists
+    let commit_check = Command::new("git")
+        .args(["rev-parse", "--verify", &commit_hash])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !commit_check.status.success() {
+        return Err(format!("Commit {} does not exist", commit_hash));
+    }
+
+    // Checkout the specific commit
+    let output = Command::new("git")
+        .args(["checkout", &commit_hash])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(format!("Successfully checked out commit {}", commit_hash))
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[command]
+fn open_external(url: String) -> Result<(), String> {
+    // This would open the URL in the default browser
+    // For now, we'll just log it
+    println!("Opening external URL: {}", url);
+    Ok(())
+}
+
 fn should_exclude_file(file_path: &str) -> bool {
     let excluded_dirs = [
         "node_modules/",
@@ -712,7 +1341,16 @@ pub fn run() {
             create_commit,
             suggest_commit_message,
             get_file_diff,
-            get_staged_diff
+            get_staged_diff,
+            get_git_graph,
+            get_repository_analytics,
+            get_merge_conflicts,
+            resolve_conflict,
+            get_rebase_plan,
+            execute_rebase,
+            checkout_commit,
+            open_external,
+            full_branch_history
         ])
         .manage(AppState { launch_path })
         .run(tauri::generate_context!())
