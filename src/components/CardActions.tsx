@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, Eye, GitBranch, ExternalLink, Download, MoreHorizontal } from "lucide-react";
 import { useCallback } from "react";
 import type { Commit } from "../types";
+import { ArrowSquareOutIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, GitBranchIcon } from "@phosphor-icons/react";
 
 interface CardActionsProps {
   commit: Commit;
@@ -20,7 +20,7 @@ export function CardActions({ commit, isActive, isHovered, onAction }: CardActio
   const actions = [
     {
       id: 'copy-hash',
-      icon: Copy,
+      icon: CopyIcon,
       label: 'Copy hash',
       onClick: () => {
         copyToClipboard(commit.hash);
@@ -29,25 +29,25 @@ export function CardActions({ commit, isActive, isHovered, onAction }: CardActio
     },
     {
       id: 'view-diff',
-      icon: Eye,
+      icon: EyeIcon,
       label: 'View diff',
       onClick: () => onAction('view-diff', commit)
     },
     {
       id: 'checkout',
-      icon: GitBranch,
+      icon: GitBranchIcon,
       label: 'Checkout',
       onClick: () => onAction('checkout', commit)
     },
     {
       id: 'open-external',
-      icon: ExternalLink,
+      icon: ArrowSquareOutIcon,
       label: 'Open in external',
       onClick: () => onAction('open-external', commit)
     },
     {
       id: 'download',
-      icon: Download,
+      icon: DownloadSimpleIcon,
       label: 'Download file',
       onClick: () => onAction('download', commit)
     }

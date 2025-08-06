@@ -1,5 +1,8 @@
 import { Badge } from "./ui/badge";
-import { Folder, X } from "@phosphor-icons/react";
+import { Folder, FolderSimpleDottedIcon, X, XIcon } from "@phosphor-icons/react";
+import {
+  startTransition
+} from 'react';
 
 interface RepoCarProps {
   path: string;
@@ -12,7 +15,7 @@ interface RepoCarProps {
 
 export default function RepoCard(repo: RepoCarProps) {
   return (
-    <div key={repo.path} className="recent-repo-card">
+    <div key={repo.path} className="recent-repo-card font-mono flex">
       <button
         type="button"
         className="recent-repo-btn"
@@ -20,22 +23,20 @@ export default function RepoCard(repo: RepoCarProps) {
         title={`Open ${repo.path}`}
       >
         <div className="repo-icon">
-          <Folder className="w-5 h-5" weight="duotone" />
+          <FolderSimpleDottedIcon size={34} weight="duotone" className="text-green-300" />
         </div>
         <div className="repo-details">
-          <div className="repo-name">{repo.name}</div>
-          <div className="repo-path">{repo.path}</div>
+          <div className="text-lg text-white font-mono">{repo.name}</div>
+          <div className="text-xs text-gray-500">{repo.path}</div>
           <div className="repo-meta">
             {repo.fileCount && (
-              <>
                 <Badge
-                  className="h-5 min-w-5 rounded-full px-1 font-mono tabular-nums"
-                  variant="outline"
+                  className="h-5 min-w-5 p-2 rounded-full px-1 font-mono tabular-nums bg-blue-100/40 text-gray-900"
+                  variant="destructive"
                 >
                   {repo.fileCount}
+                  <span>files</span>
                 </Badge>
-                <span>files</span>
-              </>
             )}
             <span>•</span>
             <span>{new Date(repo.lastAccessed).toLocaleDateString()}</span>
@@ -44,11 +45,15 @@ export default function RepoCard(repo: RepoCarProps) {
       </button>
       <button
         type="button"
-        className="remove-repo-btn"
-        onClick={() => repo.handleRemoveRecentRepo(repo.path)}
+        className="h-full w-[5em] grid place-content-center text-gray-500 hover:text-red-400 p-4 cursor-pointer"
+        onClick={() => {
+          startTransition(() => {
+            repo.handleRemoveRecentRepo(repo.path);
+          })
+        }}
         title="Remove from recent repositories"
       >
-        <X className="w-4 h-4" />
+        <XIcon size={18} />
       </button>
     </div>
   );
