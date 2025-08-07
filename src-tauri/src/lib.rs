@@ -451,6 +451,27 @@ fn get_git_status(repo_path: String) -> Result<GitStatus, String> {
 }
 
 #[command]
+fn unstage_all(repo_path: String) -> Result<(), String> {
+    let path = PathBuf::from(&repo_path);
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // Reset index to HEAD (keep working tree)
+    let output = Command::new("git")
+        .args(["reset"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[command]
 fn stage_file(repo_path: String, file_path: String) -> Result<(), String> {
     let path = PathBuf::from(&repo_path);
     
@@ -546,15 +567,18 @@ fn create_commit(repo_path: String, message: String, files: Vec<String>) -> Resu
         .map_err(|e| e.to_string())?;
 
     if output.status.success() {
-        let commit_hash = String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .find(|line| line.contains("[") && line.contains("]"))
-            .and_then(|line| {
-                line.split_whitespace()
-                    .find(|word| word.len() == 7 && word.chars().all(|c| c.is_alphanumeric()))
-            })
-            .unwrap_or("unknown")
-            .to_string();
+        // Retrieve last commit hash safely
+        let rev_parse = Command::new("git")
+            .args(["rev-parse", "--short", "HEAD"])
+            .current_dir(&path)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let commit_hash = if rev_parse.status.success() {
+            String::from_utf8_lossy(&rev_parse.stdout).trim().to_string()
+        } else {
+            "unknown".to_string()
+        };
         
         Ok(commit_hash)
     } else {
@@ -1350,6 +1374,7 @@ pub fn run() {
             get_git_status,
             stage_file,
             unstage_file,
+            unstage_all,
             create_commit,
             suggest_commit_message,
             get_file_diff,

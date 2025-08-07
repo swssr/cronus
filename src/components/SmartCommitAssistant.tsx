@@ -17,6 +17,7 @@ import { GitStatus, CommitSuggestion } from '../types';
 import { 
   stageFile, 
   unstageFile, 
+  unstageAll,
   createCommit, 
   suggestCommitMessage, 
   generateCommitSuggestions 
@@ -41,6 +42,8 @@ export default function SmartCommitAssistant({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<CommitSuggestion | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [guidedMode, setGuidedMode] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
 
   const generateAutoSuggestion = useCallback(async () => {
     try {
@@ -146,15 +149,24 @@ export default function SmartCommitAssistant({
               </p>
             </div>
           </div>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowHelp(!showHelp)}
-            className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-          >
-            <Info size={16} />
-          </Button>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 mr-2">
+              <input
+                type="checkbox"
+                checked={guidedMode}
+                onChange={(e) => setGuidedMode(e.target.checked)}
+              />
+              Guided
+            </label>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowHelp(!showHelp)}
+              className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+            >
+              <Info size={16} />
+            </Button>
+          </div>
         </div>
 
         {/* Help Tooltip */}
@@ -387,25 +399,48 @@ export default function SmartCommitAssistant({
               </AnimatePresence>
             </div>
 
-            {/* Commit Button */}
-            <Button
-              onClick={handleCreateCommit}
-              disabled={!commitMessage.trim() || isCreatingCommit}
-              className="w-full bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isCreatingCommit ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Creating commit...
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <GitCommit size={16} />
-                  Create Commit
-                  <ArrowRight size={16} />
-                </div>
-              )}
-            </Button>
+            {/* Preview (Guided) */}
+            {guidedMode && (
+              <div className="mb-3 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded p-3">
+                <div className="font-medium mb-1">Command preview</div>
+                <code className="block whitespace-pre overflow-auto">
+                  {`git add ${gitStatus.staged.map(f => f.path).join(' ')}`}
+                </code>
+                <code className="block whitespace-pre overflow-auto mt-1">
+                  {`git commit -m "${commitMessage || '<message>'}"`}
+                </code>
+                <div className="mt-2">This stages the listed files and creates a commit.</div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleCreateCommit}
+                disabled={!commitMessage.trim() || isCreatingCommit}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isCreatingCommit ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Creating commit...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <GitCommit size={16} />
+                    Create Commit
+                    <ArrowRight size={16} />
+                  </div>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={async () => { await unstageAll(repoPath); onStatusUpdate(); }}
+                className="border-slate-300 dark:border-slate-600"
+              >
+                Unstage all
+              </Button>
+            </div>
           </motion.div>
         )}
 

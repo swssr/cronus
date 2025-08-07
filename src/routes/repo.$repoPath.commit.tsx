@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import SmartCommitAssistant from '@/components/SmartCommitAssistant'
 import { getGitStatus } from '@/utils/index'
+import { useEffect, useState } from 'react'
+import type { GitStatus } from '@/types'
 
 export const Route = createFileRoute('/repo/$repoPath/commit')({
   component: CommitPage,
@@ -12,7 +14,17 @@ export const Route = createFileRoute('/repo/$repoPath/commit')({
 })
 
 function CommitPage() {
-  const { repoPath, gitStatus } = Route.useLoaderData()
+  const { repoPath, gitStatus: initialStatus } = Route.useLoaderData()
+  const [gitStatus, setGitStatus] = useState<GitStatus | null>(initialStatus)
+
+  const refreshStatus = async () => {
+    const next = await getGitStatus(repoPath)
+    setGitStatus(next)
+  }
+
+  useEffect(() => {
+    setGitStatus(initialStatus)
+  }, [initialStatus])
 
   return (
     <div className="commit-mode-container p-6">
@@ -20,7 +32,7 @@ function CommitPage() {
         <SmartCommitAssistant
           repoPath={repoPath}
           gitStatus={gitStatus}
-          onStatusUpdate={() => {}}
+          onStatusUpdate={refreshStatus}
           onCommitCreated={() => {}}
         />
       )}

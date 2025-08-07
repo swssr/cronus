@@ -459,6 +459,15 @@ export async function unstageFile(repoPath: string, filePath: string): Promise<v
   }
 }
 
+export async function unstageAll(repoPath: string): Promise<void> {
+  try {
+    await invoke<void>("unstage_all", { repoPath });
+  } catch (error) {
+    console.error("Error unstaging all:", error);
+    throw error;
+  }
+}
+
 export async function createCommit(repoPath: string, message: string, files?: string[]): Promise<string> {
   try {
     const commitHash = await invoke<string>("create_commit", { 
