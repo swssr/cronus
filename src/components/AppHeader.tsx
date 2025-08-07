@@ -26,7 +26,6 @@ export default function AppHeader({
   const { isDark, setTheme } = useTheme()
 
   // Extract route information
-  const isHome = location.pathname === '/'
   const isRepoRoute = location.pathname.startsWith('/repo/')
   const isFileView = location.pathname.includes('/file/')
   
