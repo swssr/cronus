@@ -1,145 +1,71 @@
-I'll help you audit your git client and identify features that would make it useful for beginners. Let me first explore your current codebase to understand what you've built so far.
+## Cronus plan – unique value for SCM newcomers
 
-Read file: src/App.tsx
-Read file: src/types.ts
-Read file: src/utils/index.ts
-Read file: src-tauri/src/main.rs
-Read file: src-tauri/src/lib.rs
-Read file: src/components/FileSelectionMode.tsx
-Now let me look at some of the view components to understand the current visualization features:
+### Positioning
+Build the Git client that teaches as it works: file‑first storytelling, guided workflows, safe experimentation.
 
-Read file: src/views/EnhancedImmersiveView.tsx
-Now let me check the package.json to understand the current dependencies and project setup:
+### Differentiating pillars
+- File‑first storytelling
+- Guided SCM onramp (command preview + undo + explainers)
+- Smart Commit Coach
+- What‑if sandbox (virtual branches/worktrees)
+- Visual mental models (graphs, hotspots, authorship)
 
-Read file: package.json
-Based on my audit of your git client, I can see you've built a sophisticated application with some advanced features. Let me provide you with a comprehensive analysis of what features would make this a useful git client for beginners, focusing on surfacing lesser-known features in approachable terms.
+## 2‑week MVP
 
-## Current State Analysis
+### Week 1
+- Guided Commit Onramp in `src/components/SmartCommitAssistant.tsx`
+  - Add Guided toggle, Command Preview, anti‑pattern warnings (huge commits), Unstage All, Undo last commit
+  - Show plain‑English explainers for stage/commit
+- File Story tab in `src/views/EnhancedImmersiveView.tsx`
+  - Render events: first commit, rename points, largest changes, top authors, churn score
+  - Inline/side‑by‑side diff toggle
+- AI Palette (v0)
+  - 3 deterministic intents: create branch from commit; show commits that changed a function; compare file between dates
+  - Preview “what this will do” and navigate/execute
 
-Your app currently has:
-- **File history visualization** with immersive timeline view
-- **Branch management** with virtual branches
-- **Commit exploration** with detailed stats
-- **Search and filtering** capabilities
-- **Modern UI** with dark/light themes
+### Week 2
+- What‑if virtual branches
+  - UI to create from any commit, diff vs base, discard safely
+- Notes and snippets
+  - Attach notes to commits; extract/save diff hunks as snippets with origin metadata
+- Practice Mode (starter)
+  - Create a temp repo with a simple checklist of tasks; show previewed commands at each step
 
-## Recommended Features for Beginner-Friendly Git Client
+## Backend additions (Rust/Tauri, `src-tauri/src/lib.rs`)
+- `revert_last_commit(repo_path) -> Result<(), String>`
+- `discard_file_changes(repo_path, file_path) -> Result<(), String>`
+- `get_git_rename_history(file_path) -> Result<Vec<RenameEvent>, String>`
+- `create_practice_repo(seed_name) -> Result<String, String>` and `cleanup_practice_repo(path) -> Result<(), String>`
+- Ensure existing endpoints can return human‑readable command previews when applicable
 
-### 1. **Git Workflow Visualization** 🎯
-**Beginner-friendly explanation**: "See your work as a story"
-- **Branch timeline view**: Show how branches diverge and merge
-- **Commit graph visualization**: Visual representation of git history
-- **Merge conflict resolution guide**: Step-by-step conflict resolution
-- **Stash management**: "Save your work for later" with visual stash browser
+## Frontend integrations (`src/utils/index.ts` and UI files)
+- Wrap git actions with Preview → Confirm → Execute → Record inverse (for Undo Center)
+- Story builder that composes events (first/rename/largest/ownership/hotspot) into a short narrative
+- Add persistent local storage for notes/snippets
 
-### 2. **Smart Commit Assistant** 🤖
-**Beginner-friendly explanation**: "Git helps you write better commit messages"
-- **Conventional commit suggestions**: Based on file changes
-- **Commit message templates**: Pre-filled templates for common actions
-- **Change summary**: Auto-generate summaries of what changed
-- **Commit type detection**: Automatically suggest "feat:", "fix:", "docs:", etc.
+## Acceptance criteria
+- Guided mode: every destructive action shows preview + confirm; one‑click undo available when safe
+- Story view: ≥5 event types; loads under ~300ms on medium repos
+- AI palette: ≥3 intents work end‑to‑end with clear previews
+- Virtual branches: create, view diff vs base, discard without touching real history
+- Notes: attach/list/persist locally
 
-### 3. **Interactive Learning Features** 📚
-**Beginner-friendly explanation**: "Learn Git as you use it"
-- **Tooltips with explanations**: Hover over git concepts for explanations
-- **Command preview**: Show what git command would be executed
-- **Undo/redo safety**: Visual confirmation before destructive actions
-- **Git concepts glossary**: Built-in help for terms like "rebase", "cherry-pick"
+## Metrics
+- Time‑to‑first‑commit in Guided mode
+- % actions via palette
+- Story view opens per file
+- Undo usage rate post‑actions
 
-### 4. **Enhanced File Management** 📁
-**Beginner-friendly explanation**: "See what's happening with your files"
-- **File status indicators**: Visual indicators for staged, modified, untracked
-- **Diff visualization**: Side-by-side diff with syntax highlighting
-- **File history timeline**: See how individual files evolved
-- **Blame view**: "Who changed what and when"
+## Out of scope (for MVP)
+- Full PR workflows, remote auth, CI integrations
+- Deep code review features
 
-### 5. **Repository Health Dashboard** 📊
-**Beginner-friendly explanation**: "How healthy is your project?"
-- **Commit frequency analysis**: Activity patterns over time
-- **Author contribution insights**: Who's working on what
-- **File change patterns**: Which files change most often
-- **Branch activity**: Which branches are active
-
-### 6. **Advanced Features Made Simple** ⚡
-**Beginner-friendly explanations**:
-- **Rebase**: "Replay your changes on top of new commits"
-- **Cherry-pick**: "Pick specific commits to apply elsewhere"
-- **Interactive rebase**: "Edit, reorder, or combine commits"
-- **Bisect**: "Find which commit introduced a bug"
-
-### 7. **Collaboration Features** 👥
-**Beginner-friendly explanation**: "Work together safely"
-- **Pull request preview**: See changes before merging
-- **Code review tools**: Inline commenting and suggestions
-- **Conflict resolution**: Visual merge conflict resolver
-- **Branch protection**: Prevent accidental pushes to main
-
-### 8. **Git Hooks & Automation** 🔧
-**Beginner-friendly explanation**: "Automate repetitive tasks"
-- **Pre-commit hooks**: Run tests before committing
-- **Commit message validation**: Ensure good commit messages
-- **Auto-formatting**: Format code automatically
-- **Linting integration**: Catch issues before they're committed
-
-### 9. **Repository Insights** 🔍
-**Beginner-friendly explanation**: "Understand your project better"
-- **Code churn analysis**: Which files change most
-- **Technical debt indicators**: Files that need attention
-- **Dependency tracking**: See how files depend on each other
-- **Migration suggestions**: When to refactor or restructure
-
-### 10. **Accessibility & Learning** 🎓
-**Beginner-friendly explanation**: "Git made simple"
-- **Keyboard shortcuts**: Power user features for everyone
-- **Command palette**: Quick access to all features
-- **Tutorial mode**: Guided tours of features
-- **Progressive disclosure**: Show advanced features when needed
-
-## Implementation Priority
-
-### Phase 1 (High Impact, Low Complexity)
-1. **Smart commit assistant** - Auto-suggest commit messages
-2. **File status indicators** - Visual git status
-3. **Tooltips and explanations** - Built-in help system
-4. **Command preview** - Show what git commands will do
-
-### Phase 2 (Medium Impact, Medium Complexity)
-1. **Branch timeline visualization** - Visual git history
-2. **Diff visualization** - Better diff viewing
-3. **Repository health dashboard** - Project insights
-4. **Conflict resolution guide** - Step-by-step help
-
-### Phase 3 (High Impact, High Complexity)
-1. **Interactive rebase** - Visual rebase interface
-2. **Cherry-pick interface** - Easy cherry-picking
-3. **Bisect tool** - Visual bug hunting
-4. **Advanced collaboration** - Pull request features
-
-## Technical Recommendations
-
-### Backend Enhancements (Rust/Tauri)
-```rust
-// Add these commands to your lib.rs
-#[command]
-fn get_git_status(repo_path: String) -> Result<GitStatus, String>
-
-#[command]
-fn stage_file(repo_path: String, file_path: String) -> Result<(), String>
-
-#[command]
-fn create_commit(repo_path: String, message: String, files: Vec<String>) -> Result<String, String>
-
-#[command]
-fn get_diff(repo_path: String, file_path: String) -> Result<String, String>
-
-#[command]
-fn suggest_commit_message(repo_path: String, staged_files: Vec<String>) -> Result<String, String>
-```
-
-### Frontend Enhancements
-- **Monaco Editor integration** for better diff viewing
-- **D3.js** for git graph visualization
-- **React Flow** for branch timeline
-- **Framer Motion** for smooth animations (already using)
-
-Would you like me to start implementing any of these features? I'd recommend starting with the **Smart Commit Assistant** and **File Status Indicators** as they provide immediate value to beginners while being relatively straightforward to implement.
+## Gaps & open questions
+- Remote operations: auth, push/pull safety, branch protection interactions
+- Large repo performance and caching strategy; pagination for graphs/history
+- Accessibility (keyboard navigation, screen readers), internationalization
+- Storage model for notes/snippets (local only vs repo‑linked), export/import
+- AI privacy: API key management, offline mode, deterministic vs LLM fallback
+- Stash workflows and a dedicated “Undo Center” UI beyond last commit
+- Git LFS and large/binary file handling
+- Monorepo awareness: component/folder‑level stories; workspace multi‑repo view
