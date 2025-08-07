@@ -94,7 +94,6 @@ export default function AppHeader({
           <div className="header-title-section">
             <h5 className="header-title">
               {fileName || "Cronus"}
-              <span className="text-xs text-gray-500 ml-2">v0.1.0</span>
             </h5>
           </div>
         </div>

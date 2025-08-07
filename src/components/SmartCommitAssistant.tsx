@@ -114,13 +114,13 @@ export default function SmartCommitAssistant({
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusDotClass = (status: string) => {
     switch (status) {
-      case 'modified': return '🟡';
-      case 'added': return '🟢';
-      case 'deleted': return '🔴';
-      case 'untracked': return '🔵';
-      default: return '⚪';
+      case 'modified': return 'bg-amber-500';
+      case 'added': return 'bg-emerald-500';
+      case 'deleted': return 'bg-rose-500';
+      case 'untracked': return 'bg-sky-500';
+      default: return 'bg-slate-400';
     }
   };
 
@@ -203,23 +203,24 @@ export default function SmartCommitAssistant({
                 <Minus size={14} className="text-red-500" />
                 Unstaged Changes ({gitStatus.unstaged.length})
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {gitStatus.unstaged.map((file) => (
                   <motion.div
                     key={file.path}
-                    className="file-item flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg"
+                    className="file-item flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ scale: 1.01 }}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-lg">{getStatusIcon(file.status)}</span>
+                      <span className={`inline-block w-2 h-2 rounded-full ${getStatusDotClass(file.status)}`} />
                       <div className="flex items-center gap-2">
                         <FileIcon fileName={file.path} size={16} />
-                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-[48ch]">
                           {file.path}
                         </span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(file.status)} bg-slate-100 dark:bg-slate-600`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(file.status)} bg-slate-100 dark:bg-slate-700/60`}
+                        >
                           {file.status}
                         </span>
                       </div>
@@ -245,23 +246,23 @@ export default function SmartCommitAssistant({
                 <FileText size={14} className="text-blue-500" />
                 Untracked Files ({gitStatus.untracked.length})
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {gitStatus.untracked.map((filePath) => (
                   <motion.div
                     key={filePath}
-                    className="file-item flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg"
+                    className="file-item flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ scale: 1.01 }}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-lg">🔵</span>
+                      <span className="inline-block w-2 h-2 rounded-full bg-sky-500" />
                       <div className="flex items-center gap-2">
                         <FileIcon fileName={filePath} size={16} />
-                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-[48ch]">
                           {filePath}
                         </span>
-                        <span className="text-xs px-2 py-1 rounded-full text-blue-600 dark:text-blue-400 bg-slate-100 dark:bg-slate-600">
+                        <span className="text-xs px-2 py-0.5 rounded-full text-blue-600 dark:text-blue-400 bg-slate-100 dark:bg-slate-700/60">
                           untracked
                         </span>
                       </div>
@@ -287,23 +288,23 @@ export default function SmartCommitAssistant({
                 <CheckCircle size={14} className="text-green-500" />
                 Staged for Commit ({gitStatus.staged.length})
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {gitStatus.staged.map((file) => (
                   <motion.div
                     key={file.path}
-                    className="file-item flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg"
+                    className="file-item flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ scale: 1.01 }}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-lg">🟢</span>
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
                       <div className="flex items-center gap-2">
                         <FileIcon fileName={file.path} size={16} />
-                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-[48ch]">
                           {file.path}
                         </span>
-                        <span className="text-xs px-2 py-1 rounded-full text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/20">
+                        <span className="text-xs px-2 py-0.5 rounded-full text-emerald-600 dark:text-emerald-400 bg-slate-100 dark:bg-slate-700/60">
                           staged
                         </span>
                       </div>
@@ -312,7 +313,7 @@ export default function SmartCommitAssistant({
                       size="sm"
                       variant="outline"
                       onClick={() => handleUnstageFile(file.path)}
-                      className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                      className="border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/40"
                     >
                       <Minus size={14} />
                       Unstage
