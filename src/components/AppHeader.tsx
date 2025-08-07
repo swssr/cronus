@@ -57,12 +57,6 @@ export default function AppHeader({
       case 'graph':
         navigate({ to: `/repo/${repoPath}/graph` })
         break
-      case 'analytics':
-        navigate({ to: `/repo/${repoPath}/analytics` })
-        break
-      case 'conflicts':
-        navigate({ to: `/repo/${repoPath}/conflicts` })
-        break
     }
   }
 
@@ -70,8 +64,6 @@ export default function AppHeader({
     if (location.pathname.includes('/files')) return 'files'
     if (location.pathname.includes('/commit')) return 'commit'
     if (location.pathname.includes('/graph')) return 'graph'
-    if (location.pathname.includes('/analytics')) return 'analytics'
-    if (location.pathname.includes('/conflicts')) return 'conflicts'
     return 'files'
   }
 
@@ -184,34 +176,7 @@ export default function AppHeader({
               </svg>
               Graph
             </button>
-            <button
-              type="button"
-              className={`mode-button ${
-                getCurrentMode() === "analytics" ? "active" : ""
-              }`}
-              onClick={() => handleModeChange("analytics")}
-              title="Repository analytics"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M2 2v12h12V2H2zm1 1h10v10H3V3z"/>
-                <path d="M4 8h2v4H4V8zm3-2h2v6H7V6zm3 1h2v5h-2V7z"/>
-              </svg>
-              Analytics
-            </button>
-            <button
-              type="button"
-              className={`mode-button ${
-                getCurrentMode() === "conflicts" ? "active" : ""
-              }`}
-              onClick={() => handleModeChange("conflicts")}
-              title="Conflict resolution"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM0 8a8 8 0 1116 0A8 8 0 010 8z"/>
-                <path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z"/>
-              </svg>
-              Conflicts
-            </button>
+            {/* Temporarily hide Analytics/Conflicts to reduce clutter in MVP */}
           </div>
         )}
       </div>
