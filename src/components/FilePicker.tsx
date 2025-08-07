@@ -6,7 +6,11 @@ import {
   GitBranch, 
   CheckCircle, 
   Warning, 
-  Spinner 
+  Spinner, 
+  SpinnerBallIcon,
+  FolderOpenIcon,
+  SpinnerIcon,
+  WarningIcon
 } from '@phosphor-icons/react';
 
 interface FilePickerProps {
@@ -39,66 +43,37 @@ export function FilePicker({ onDirectorySelected, isLoading = false }: FilePicke
     }
   };
 
+  const showLoader = isLoading || isPicking;
+
   return (
-    <div className="file-picker">
-      <div className="file-picker-content">
-        <div className="file-picker-icon">
-          {isLoading ? (
-            <Spinner className="w-16 h-16 animate-spin text-primary" weight="bold" />
+    <div className="file-picker w-md h-max cursor-pointer" onClick={handlePickDirectory} onKeyUp={handlePickDirectory} onKeyDown={handlePickDirectory} role="button" tabIndex={0}>
+      <div className="h-max flex flex-col items-center justify-center text-center">
+        <div className="file-picker-icon m-0!">
+          {showLoader ? (
+            <SpinnerIcon size={64} className="animate-spin text-primary text-gray-500" weight="light" />
           ) : (
-            <FolderOpen className="w-16 h-16 text-primary" weight="duotone" />
+            <FolderOpenIcon size={64} className="text-gray-500" weight="light" />
           )}
         </div>
         
-        <h2 className="file-picker-title">
-          {isLoading ? 'Loading Repository...' : 'Select a Repository'}
-        </h2>
+        <h5 className="text-lg font-bold text-gray-500">
+          {showLoader ? 'Loading Repository...' : 'Select a Repository'}
+        </h5>
         
-        <p className="file-picker-description">
-          {isLoading 
-            ? 'Analyzing files and git history...' 
+        <p className="text-sm text-gray-500 font-light">
+          {showLoader 
+            ? 'Analyzing files history...' 
             : 'Choose a git repository to explore file history'
           }
         </p>
 
         {error && (
           <div className="file-picker-error">
-            <Warning className="w-5 h-5 text-destructive" weight="fill" />
+            <WarningIcon className="w-5 h-5 text-destructive" weight="fill" />
             <span>{error}</span>
           </div>
         )}
-
-        {!isLoading && (
-          <button
-            type="button"
-            className="file-picker-button"
-            onClick={handlePickDirectory}
-            disabled={isPicking}
-          >
-            {isPicking ? (
-              <>
-                <Spinner className="w-5 h-5 animate-spin" />
-                Opening...
-              </>
-            ) : (
-              <>
-                <Folder className="w-5 h-5" weight="duotone" />
-                Browse Repository
-              </>
-            )}
-          </button>
-        )}
-
-        <div className="file-picker-features">
-          <div className="feature-item">
-            <GitBranch className="w-5 h-5 text-muted-foreground" weight="duotone" />
-            <span>Git history tracking</span>
-          </div>
-          <div className="feature-item">
-            <CheckCircle className="w-5 h-5 text-muted-foreground" weight="duotone" />
-            <span>File change visualization</span>
-          </div>
-        </div>
+        
       </div>
     </div>
   );

@@ -58,15 +58,12 @@ export default function AppHeader({
   onViewModeChange,
   cardsToShow = 3,
   onCardsToShowChange,
-  commits = [],
-  filteredCommits = [],
   currentMode = "file",
   onModeChange,
   onHelpClick,
   left,
   right,
 }: HeaderProps) {
-  const repoName = directory ? directory.split("/").pop() || "Repository" : "";
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isFileHistoryView = !!fileName;
 
@@ -109,6 +106,7 @@ export default function AppHeader({
 
       {/* Right Section - View Controls */}
       <div className="header-right">
+        {right}
         {/* Help Button */}
         <button
           type="button"

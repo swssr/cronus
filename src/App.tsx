@@ -39,6 +39,7 @@ import { ConflictResolver } from "./components/ConflictResolver";
 import React from "react";
 import { CaretLeftIcon } from "@phosphor-icons/react";
 import { Toaster } from "./components/ui/sonner";
+import { toast } from "sonner";
 
 // Theme context and provider
 type Theme = "light" | "dark" | "system";
@@ -355,20 +356,21 @@ function AppContent() {
       )
     : commits;
 
+
+  useEffect(() => {
+    if (notification) {
+      toast(notification.message, {
+        description: notification.message,
+        duration: 5000,
+        position: "bottom-center",
+        className: "bg-green-50 border-green-200 text-green-800",
+      });
+    }
+  }, [notification]);
+
+
   return (
     <div className="app-container">
-      <ThemeToggle
-        isDark={isDark}
-        onToggle={() => setTheme(isDark ? "light" : "dark")}
-        className="fixed top-4 right-4 z-50"
-      />
-      {notification && (
-        <Notification
-          message={notification.message}
-          type={notification.type}
-          onClose={() => setNotification(null)}
-        />
-      )}
       <AppHeader
         setDirectory={(path) => setDirectory(path!)}
         directory={directory!}
@@ -394,8 +396,6 @@ function AppContent() {
                 title="Back to repository selection"
               >
                 <CaretLeftIcon size={18} />
-                
-
               </button>
             )}
 
@@ -405,6 +405,16 @@ function AppContent() {
                     <span className="text-xs text-gray-500 ml-2">v{__APP_VERSION__}</span>
                   </h5>
                 </div>
+          </div>
+        }
+
+
+        right={
+          <div className="header-right">
+            <ThemeToggle
+              isDark={isDark}
+              onToggle={() => setTheme(isDark ? "light" : "dark")}
+            />
           </div>
         }
       />

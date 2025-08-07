@@ -1171,8 +1171,17 @@ fn execute_rebase(repo_path: String, base_commit: String, plan: Vec<RebaseCommit
         return Err("Path is not a directory".to_string());
     }
 
-    // For now, return a placeholder message
-    // In a real implementation, this would execute the rebase plan
+    // Execute the rebase plan
+    let mut command = Command::new("git");
+    command.args(["rebase", "-i", &base_commit]);
+    command.current_dir(&path);
+
+    let output = command.output().map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
     Ok(format!("Rebase plan executed for {} commits", plan.len()))
 }
 

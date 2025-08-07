@@ -1,3 +1,5 @@
+@reference "tailwindcss";
+
 :root {
     --background: #000000;
     --surface: #1c1c1e;
@@ -57,20 +59,16 @@ body {
     color: var(--text-primary);
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
-    line-height: 1.5;
     overflow: hidden;
+    line-height: 1.5;
     border-radius: 10px;
 }
 
 .app-container {
-    min-height: 100vh;
     background: var(--background);
-    display: flex;
-    flex-direction: column;
+    @apply overflow-x-hidden overflow-y-auto h-dvh m-0 p-0;
 }
 
-/* Apple-Style Clean Header */
 .app-header-clean {
     padding: 1rem 2rem;
     background: rgba(28, 28, 30, 0.95);
