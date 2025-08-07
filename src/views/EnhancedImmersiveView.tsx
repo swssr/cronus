@@ -591,8 +591,8 @@ export function EnhancedImmersiveView({
         className="enhanced-timeline-container px-6 pb-20 max-h-screen overflow-y-auto custom-scrollbar"
         style={{ paddingTop: "120px" }}
       >
-        <div className="timeline-content-enhanced max-w-6xl mx-auto">
-          <div className="timeline-items-enhanced space-y-6">
+        <div className="timeline-content-enhanced max-w-4xl mx-auto">
+          <div className="timeline-items-enhanced space-y-3">
             {commits.map((commit, index) => {
               const isActive = index === activeIndex;
               const isHovered = hoveredIndex === index;
@@ -608,92 +608,22 @@ export function EnhancedImmersiveView({
               return (
                 <motion.div
                   key={commit.hash}
-                  className={`enhanced-timeline-item group relative bg-gradient-to-r from-white/5 to-transparent backdrop-blur-sm border border-white/10 rounded-2xl p-6 cursor-pointer ${
-                    isActive
-                      ? "active ring-2 ring-purple-400 bg-purple-500/10"
-                      : ""
-                  } ${isHovered ? "hovered" : ""} ${
-                    selectedCommits.has(commit.hash)
-                      ? "selected bg-blue-500/10 border-blue-400"
-                      : ""
+                  className={`group relative border border-slate-200 dark:border-slate-700 rounded-xl p-4 bg-white dark:bg-slate-800 cursor-pointer transition-colors ${
+                    selectedCommits.has(commit.hash) ? 'ring-1 ring-blue-400' : ''
                   }`}
                   initial={{ opacity: 0, x: -20 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true, margin: "-10%" }}
-                  transition={{ delay: index * 0.02 }}
+                  transition={{ delay: index * 0.01 }}
                   onClick={() => scrollToItem(index)}
                   onMouseEnter={() => setHoveredIndex(index)}
                   onMouseLeave={() => setHoveredIndex(null)}
-                  whileHover={{ scale: 1.02, x: 10 }}
+                  whileHover={{ x: 6 }}
                 >
-                  {/* Enhanced timeline connector */}
-                  <div className="timeline-connector absolute -left-6 top-0 bottom-0 flex flex-col items-center">
-                    <div className="connector-line w-0.5 flex-1 bg-gradient-to-b from-purple-400/50 to-blue-400/50" />
-                    <motion.div
-                      className="timeline-dot-enhanced w-8 h-8 rounded-full border-2 border-white/30 flex items-center justify-center"
-                      animate={{
-                        scale: isActive ? 1.3 : 1,
-                        backgroundColor: isActive
-                          ? authorColor
-                          : adjustColorOpacity(authorColor, 0.6),
-                        borderColor: isActive
-                          ? "white"
-                          : "rgba(255,255,255,0.3)",
-                        boxShadow: isActive
-                          ? `0 0 20px ${adjustColorOpacity(
-                              authorColor,
-                              0.6
-                            )}, 0 0 40px ${adjustColorOpacity(
-                              authorColor,
-                              0.3
-                            )}`
-                          : "none",
-                      }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <GitCommit size={14} className="text-white" />
-                    </motion.div>
-                  </div>
-
-                  {/* Enhanced date badge */}
-                  <motion.div
-                    className="enhanced-date-badge absolute -left-20 top-6 text-center"
-                    animate={{
-                      opacity: isActive ? 1 : 0.6,
-                      scale: isActive ? 1.1 : 1,
-                    }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <div className="bg-black/40 backdrop-blur-sm border border-white/20 rounded-xl p-3 text-white">
-                      <div className="text-2xl font-bold">{date.getDate()}</div>
-                      <div className="text-xs opacity-70">
-                        {date.toLocaleDateString("en", { month: "short" })}
-                      </div>
-                      {date.getFullYear() !== new Date().getFullYear() && (
-                        <div className="text-xs opacity-50 mt-1">
-                          {date.getFullYear()}
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-
-                  {/* Enhanced Timeline Card */}
-                  <motion.div
-                    className="enhanced-timeline-card ml-8"
-                    animate={{
-                      scale: isActive ? 1.02 : 1,
-                      backgroundColor: isActive
-                        ? "rgba(147, 51, 234, 0.1)"
-                        : selectedCommits.has(commit.hash)
-                        ? "rgba(59, 130, 246, 0.1)"
-                        : "rgba(255, 255, 255, 0.02)",
-                    }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="enhanced-card-header relative">
-                      {/* Enhanced Card Actions */}
+                  <div className="relative">
+                      {/* Floating actions */}
                       <motion.div
-                        className="enhanced-card-actions flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 absolute top-4 right-4"
+                        className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 absolute top-3 right-3"
                         initial={{ scale: 0.8 }}
                         whileHover={{ scale: 1 }}
                       >
@@ -702,10 +632,10 @@ export function EnhancedImmersiveView({
                             e.stopPropagation();
                             handleCommitAction("select", commit);
                           }}
-                          className={`action-btn p-2 rounded-lg backdrop-blur-sm border transition-all duration-200 ${
+                          className={`p-1.5 rounded-md border transition-colors ${
                             selectedCommits.has(commit.hash)
-                              ? "bg-blue-500/30 border-blue-400 text-blue-200"
-                              : "bg-white/10 border-white/20 text-white hover:bg-white/20"
+                              ? 'border-blue-400 text-blue-600 dark:text-blue-300'
+                              : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                           }`}
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
@@ -719,7 +649,7 @@ export function EnhancedImmersiveView({
                             e.stopPropagation();
                             handleCommitAction("copy-hash", commit);
                           }}
-                          className="action-btn p-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white hover:bg-white/20 transition-all duration-200"
+                          className="p-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           title="Copy hash"
@@ -732,7 +662,7 @@ export function EnhancedImmersiveView({
                             e.stopPropagation();
                             handleCommitAction("create-branch", commit);
                           }}
-                          className="action-btn p-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white hover:bg-green-500/20 hover:border-green-400 hover:text-green-200 transition-all duration-200"
+                          className="p-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           title="Create branch"
@@ -745,7 +675,7 @@ export function EnhancedImmersiveView({
                             e.stopPropagation();
                             handleCommitAction("add-to-working", commit);
                           }}
-                          className="action-btn p-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white hover:bg-amber-500/20 hover:border-amber-400 hover:text-amber-200 transition-all duration-200"
+                          className="p-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           title="Add to working area"
@@ -758,7 +688,7 @@ export function EnhancedImmersiveView({
                             e.stopPropagation();
                             handleCommitAction("view-diff", commit);
                           }}
-                          className="action-btn p-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white hover:bg-purple-500/20 hover:border-purple-400 hover:text-purple-200 transition-all duration-200"
+                          className="p-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           title="View diff"
@@ -767,240 +697,53 @@ export function EnhancedImmersiveView({
                         </motion.button>
                       </motion.div>
 
-                      <div className="commit-info-enhanced">
-                        <div className="commit-title-row-enhanced flex items-start justify-between mb-4">
-                          <div className="commit-message-container-enhanced flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              {commitBadge && (
-                                <motion.span
-                                  className="commit-badge-enhanced px-3 py-1 rounded-full text-sm font-medium"
-                                  style={{
-                                    backgroundColor: adjustColorOpacity(
-                                      commitBadge.color,
-                                      0.2
-                                    ),
-                                    color: commitBadge.color,
-                                    border: `1px solid ${adjustColorOpacity(
-                                      commitBadge.color,
-                                      0.4
-                                    )}`,
-                                  }}
-                                  whileHover={{ scale: 1.05 }}
-                                >
-                                  {commitBadge.text}
-                                </motion.span>
-                              )}
-                              <motion.div
-                                className="commit-selection-checkbox w-6 h-6 rounded border-2 border-white/30 flex items-center justify-center cursor-pointer"
-                                style={{
-                                  backgroundColor: selectedCommits.has(
-                                    commit.hash
-                                  )
-                                    ? "#3b82f6"
-                                    : "transparent",
-                                  borderColor: selectedCommits.has(commit.hash)
-                                    ? "#3b82f6"
-                                    : "rgba(255,255,255,0.3)",
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCommitAction("select", commit);
-                                }}
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                              >
-                                {selectedCommits.has(commit.hash) && (
-                                  <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    className="w-2 h-2 bg-white rounded-full"
-                                  />
-                                )}
-                              </motion.div>
-                            </div>
-                            <h3 className="commit-message-enhanced text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3 leading-tight">
-                              {commit.message}
-                            </h3>
-                          </div>
-                        </div>
-
-                        <div className="commit-meta-row-enhanced flex items-center gap-4 mb-4">
-                          <motion.span
-                            className="author-badge-enhanced px-4 py-2 rounded-xl font-medium flex items-center gap-2"
-                            style={{
-                              backgroundColor: adjustColorOpacity(
-                                authorColor,
-                                0.2
-                              ),
-                              color: authorColor,
-                              border: `1px solid ${adjustColorOpacity(
-                                authorColor,
-                                0.4
-                              )}`,
-                            }}
-                            whileHover={{ scale: 1.05 }}
-                          >
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: authorColor }}
-                            />
-                            {commit.author}
-                          </motion.span>
-
-                          <motion.button
-                            type="button"
-                            className="hash-enhanced px-4 py-2 bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl text-white/90 font-mono text-sm hover:bg-black/50 hover:text-white transition-all duration-200"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(commit.hash);
-                            }}
+                      <div>
+                        <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{commit.message}</h3>
+                        <div className="mt-1 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                          <span className="inline-flex items-center gap-1"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: authorColor }} />{commit.author}</span>
+                          <span>•</span>
+                          <span>{date.toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          <span>•</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); copyToClipboard(commit.hash); }}
+                            className="font-mono hover:underline"
                             title="Copy commit hash"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
                           >
-                            {commit.hash.slice(0, 7)}
-                          </motion.button>
-
-                          <div className="commit-time text-slate-500 dark:text-slate-400 text-sm">
-                            {date.toLocaleDateString("en", {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
+                            {commit.hash.slice(0,7)}
+                          </button>
                         </div>
-
-                        {stats.files > 0 && (
-                          <div className="commit-stats-enhanced flex items-center gap-3 flex-wrap">
-                            <motion.span
-                              className="files-count-enhanced px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-slate-700 dark:text-slate-300 text-sm font-medium flex items-center gap-1"
-                              whileHover={{ scale: 1.05 }}
-                            >
-                              📁 {stats.files} file{stats.files > 1 ? "s" : ""}
-                            </motion.span>
-
-                            {stats.additions > 0 && (
-                              <motion.span
-                                className="additions-enhanced px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-1"
-                                style={{
-                                  backgroundColor: adjustColorOpacity(
-                                    "#10b981",
-                                    0.2
-                                  ),
-                                  color: "#10b981",
-                                  border: `1px solid ${adjustColorOpacity(
-                                    "#10b981",
-                                    0.4
-                                  )}`,
-                                }}
-                                whileHover={{ scale: 1.05 }}
-                              >
-                                +{stats.additions}
-                              </motion.span>
-                            )}
-
-                            {stats.deletions > 0 && (
-                              <motion.span
-                                className="deletions-enhanced px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-1"
-                                style={{
-                                  backgroundColor: adjustColorOpacity(
-                                    "#ef4444",
-                                    0.2
-                                  ),
-                                  color: "#ef4444",
-                                  border: `1px solid ${adjustColorOpacity(
-                                    "#ef4444",
-                                    0.4
-                                  )}`,
-                                }}
-                                whileHover={{ scale: 1.05 }}
-                              >
-                                -{stats.deletions}
-                              </motion.span>
-                            )}
-
-                            <motion.span
-                              className="activity-indicator-enhanced px-3 py-1 rounded-lg text-sm font-medium"
-                              style={{
-                                backgroundColor: adjustColorOpacity(
-                                  activityColor,
-                                  0.2
-                                ),
-                                color: activityColor,
-                                border: `1px solid ${adjustColorOpacity(
-                                  activityColor,
-                                  0.4
-                                )}`,
-                              }}
-                              whileHover={{ scale: 1.05 }}
-                            >
-                              {stats.additions + stats.deletions > 50
-                                ? "🔥 High"
-                                : stats.additions + stats.deletions > 20
-                                ? "⚡ Med"
-                                : "💤 Low"}{" "}
-                              Activity
-                            </motion.span>
-                          </div>
-                        )}
                       </div>
                     </div>
 
-                    {/* Enhanced code preview with better GitButler-style behavior */}
+                    {/* Minimal code preview */}
                     <AnimatePresence>
                       {(showFullHistory || isActive) && commit.content && (
                         <motion.div
-                          className="enhanced-code-preview bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl mt-4 overflow-hidden"
+                          className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg mt-3 overflow-hidden"
                           initial={{ height: 0, opacity: 0 }}
                           animate={{
-                            height: showFullHistory ? "300px" : "200px",
+                            height: showFullHistory ? "240px" : "160px",
                             opacity: 1,
                           }}
                           exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.4, ease: "easeInOut" }}
+                          transition={{ duration: 0.3 }}
                         >
-                          <div className="code-header flex items-center justify-between p-3 bg-white/90 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                              <span className="ml-3 text-slate-600 dark:text-slate-400 text-sm font-mono">
-                                {fileName}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <motion.button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCommitAction("copy-hash", commit);
-                                }}
-                                className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-xs font-mono px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded"
-                                whileHover={{ scale: 1.05 }}
-                              >
-                                {commit.hash.slice(0, 7)}
-                              </motion.button>
-                            </div>
-                          </div>
-                          <div className="code-container-enhanced">
+                          <div>
                             <Editor
-                              height={showFullHistory ? "250px" : "150px"}
+                              height={showFullHistory ? "240px" : "160px"}
                               language={getFileLanguage(fileName)}
                               value={commit.content}
                               theme="vs-dark"
                               options={{
                                 readOnly: true,
-                                minimap: { enabled: showFullHistory },
+                                minimap: { enabled: false },
                                 scrollBeyondLastLine: false,
-                                fontSize: showFullHistory ? 13 : 11,
+                                fontSize: 12,
                                 lineNumbers: "on",
-                                folding: showFullHistory,
+                                folding: false,
                                 wordWrap: "on",
                                 automaticLayout: true,
-                                padding: { top: 12, bottom: 12 },
-                                renderLineHighlight: "all",
-                                cursorStyle: "line",
-                                contextmenu: showFullHistory,
+                                padding: { top: 8, bottom: 8 },
                               }}
                             />
                           </div>
