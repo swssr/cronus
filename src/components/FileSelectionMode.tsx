@@ -224,7 +224,7 @@ export default function FileSelectionMode({
 
         {/* Tab Navigation */}
         <motion.div 
-          className="flex gap-1 mb-6 bg-white dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700"
+          className="flex gap-1 mb-6 bg-white dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700 sticky top-0 z-10"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -234,7 +234,7 @@ export default function FileSelectionMode({
             onClick={() => setActiveTab('files')}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'files'
-                ? 'bg-blue-500 text-white shadow-sm'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -246,7 +246,7 @@ export default function FileSelectionMode({
             onClick={() => setActiveTab('branches')}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'branches'
-                ? 'bg-green-500 text-white shadow-sm'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -281,7 +281,7 @@ export default function FileSelectionMode({
                   <MagnifyingGlass size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                   <Input
                     ref={fileInputRef}
-                    className="pl-10 pr-10 bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-blue-500 focus:border-blue-500"
+                    className="pl-10 pr-10 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:ring-slate-900 focus:border-slate-900"
                     placeholder="Search files..."
                     onChange={(e) => setFileSearchTerm(e.target.value)}
                     value={fileSearchTerm}
@@ -333,7 +333,7 @@ export default function FileSelectionMode({
                     ) : (
                       <motion.div 
                         key="file-categories"
-                        className="space-y-6"
+                        className="space-y-4"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
@@ -347,8 +347,8 @@ export default function FileSelectionMode({
                             animate={{ opacity: 1 }}
                             transition={{ delay: categoryIndex * 0.05 }}
                           >
-                            <div className="flex items-center justify-between mb-3">
-                              <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
                                 <Folder size={16} />
                                 {category}
                               </h3>
@@ -356,7 +356,7 @@ export default function FileSelectionMode({
                                 {files.length} files
                               </span>
                             </div>
-                            <div className="grid grid-cols-1 gap-2">
+                            <div className="grid grid-cols-1 gap-1.5">
                               {files.map((file) => (
                                 <FileCard
                                   key={file}
@@ -540,14 +540,14 @@ function FileCard({
   return (
     <button
       type="button"
-      className={`file-card p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors text-left w-full ${
+      className={`file-card p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left w-full ${
         idx === focusedResult ? "ring-2 ring-blue-500" : ""
       }`}
       onClick={() => selectFile(file)}
     >
       <div className="flex items-center gap-3">
         <div 
-          className="file-type-indicator w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold text-white"
+          className="file-type-indicator w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold text-white"
           style={{ backgroundColor: fileColor }}
           title={`${fileExtension.toUpperCase()} file`}
         >
@@ -559,7 +559,7 @@ function FileCard({
             {highlightMatch(fileName, searchTerm)}
           </div>
           {filePath && (
-            <div className="file-path text-sm text-slate-500 dark:text-slate-400 truncate">
+            <div className="file-path text-xs text-slate-500 dark:text-slate-400 truncate">
               {filePath}/
             </div>
           )}

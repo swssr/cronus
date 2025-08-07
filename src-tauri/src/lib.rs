@@ -1253,6 +1253,25 @@ fn open_external(url: String) -> Result<(), String> {
     Ok(())
 }
 
+#[command]
+fn write_repo_file(repo_path: String, relative_path: String, contents: String) -> Result<(), String> {
+    let base = PathBuf::from(&repo_path);
+    if !base.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+    // Constrain writes under .cronus/working
+    let safe_root = base.join(".cronus/working");
+    let target = safe_root.join(relative_path);
+
+    // Create parent dirs
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    fs::write(&target, contents).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn should_exclude_file(file_path: &str) -> bool {
     let excluded_dirs = [
         "node_modules/",
@@ -1387,6 +1406,7 @@ pub fn run() {
             execute_rebase,
             checkout_commit,
             open_external,
+            write_repo_file,
             full_branch_history
         ])
         .manage(AppState { launch_path })

@@ -1,4 +1,4 @@
-import { Editor } from "@monaco-editor/react";
+import { Editor, DiffEditor } from "@monaco-editor/react";
 import {
   AnimatePresence,
   motion,
@@ -47,6 +47,7 @@ export function EnhancedImmersiveView({
   const [selectedCommits, setSelectedCommits] = useState<Set<string>>(
     new Set()
   );
+  const [workingItems, setWorkingItems] = useState<Array<{ hash: string; content: string }>>([]);
   const [viewMode, setViewMode] = useState<"timeline" | "tree" | "virtual" | "story">(
     "story"
   );
@@ -148,6 +149,12 @@ export function EnhancedImmersiveView({
         break;
       case "create-branch":
         console.log("Create branch from:", commit.hash);
+        break;
+      case "add-to-working":
+        setWorkingItems((prev) => {
+          if (prev.some((w) => w.hash === commit.hash)) return prev;
+          return [...prev, { hash: commit.hash, content: commit.content }];
+        });
         break;
       case "cherry-pick":
         console.log("Cherry-pick:", commit.hash);
@@ -537,6 +544,47 @@ export function EnhancedImmersiveView({
         </main>
       )}
 
+      {/* Compare View when two commits are selected */}
+      {selectedCommits.size === 2 && (
+        <main
+          ref={containerRef}
+          className="px-6 pb-20 max-h-screen overflow-y-auto custom-scrollbar"
+          style={{ paddingTop: "120px" }}
+        >
+          <div className="max-w-6xl mx-auto space-y-4">
+            <div className="bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex items-center justify-between">
+              <div className="text-slate-700 dark:text-slate-300 text-sm">Comparing two versions of {fileName}</div>
+              <button
+                className="px-3 py-1.5 text-xs rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600"
+                onClick={() => setSelectedCommits(new Set())}
+              >
+                Clear compare
+              </button>
+            </div>
+            <DiffEditor
+              height="70vh"
+              original={(() => {
+                const [a, b] = Array.from(selectedCommits);
+                const original = commits.find((c) => c.hash === a)?.content || "";
+                return original;
+              })()}
+              modified={(() => {
+                const [a, b] = Array.from(selectedCommits);
+                const modified = commits.find((c) => c.hash === b)?.content || "";
+                return modified;
+              })()}
+              language={getFileLanguage(fileName)}
+              theme="vs-dark"
+              options={{
+                readOnly: true,
+                renderSideBySide: true,
+                minimap: { enabled: false },
+              }}
+            />
+          </div>
+        </main>
+      )}
+
       {/* Main Timeline Content */}
       <main
         ref={containerRef}
@@ -690,6 +738,19 @@ export function EnhancedImmersiveView({
                           title="Create branch"
                         >
                           <GitBranch size={14} />
+                        </motion.button>
+
+                        <motion.button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCommitAction("add-to-working", commit);
+                          }}
+                          className="action-btn p-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white hover:bg-amber-500/20 hover:border-amber-400 hover:text-amber-200 transition-all duration-200"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          title="Add to working area"
+                        >
+                          <ArrowsClockwise size={14} />
                         </motion.button>
 
                         <motion.button
@@ -985,6 +1046,20 @@ export function EnhancedImmersiveView({
                   <ArrowsClockwise size={16} />
                   Cherry-pick
                 </motion.button>
+
+                {selectedCommits.size === 2 && (
+                  <motion.button
+                    onClick={() => {
+                      // Compare is automatic via UI section; this is a no-op button for clarity
+                    }}
+                    className="px-4 py-2 bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-800/30 transition-all duration-200 flex items-center gap-2"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <GitCommit size={16} />
+                    Compare
+                  </motion.button>
+                )}
 
                 <motion.button
                   onClick={() => {

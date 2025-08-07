@@ -722,3 +722,12 @@ export function computeFileStory(commits: Commit[]) {
   } as const;
 }
 
+export async function writeWorkingFile(repoPath: string, relativePath: string, contents: string): Promise<void> {
+  try {
+    await invoke<void>("write_repo_file", { repoPath, relativePath, contents });
+  } catch (error) {
+    console.error("Error writing working file:", error);
+    throw error;
+  }
+}
+
