@@ -11,8 +11,8 @@ import {
   User,
   TreeStructure,
   GitCommit,
-  Minus,
-  Plus
+  FileText,
+  Folder
 } from '@phosphor-icons/react';
 import { FileIcon } from './FileIcon';
 import { getFileTypeColor, getAuthorColor, adjustColorOpacity } from '../utils/colorUtils';
@@ -50,19 +50,18 @@ export default function FileSelectionMode({
   directory,
   currentMode = 'file'
 }: FileSelectionModeProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [focusedResult, setFocusedResult] = useState(0);
+  const [fileSearchTerm, setFileSearchTerm] = useState('');
+  const [branchSearchTerm, setBranchSearchTerm] = useState('');
+  const [focusedFileResult, setFocusedFileResult] = useState(0);
+  const [focusedBranchResult, setFocusedBranchResult] = useState(0);
   const [branches, setBranches] = useState<string[]>([]);
   const [commits, setCommits] = useState<CommitInfo[]>([]);
   const [virtualBranchName, setVirtualBranchName] = useState('');
   const [selectedCommit, setSelectedCommit] = useState<string>('');
-  const [leftPaneFocused, setLeftPaneFocused] = useState(false);
-  const [rightPaneFocused, setRightPaneFocused] = useState(false);
-  const [focusMode, setFocusMode] = useState<'include' | 'exclude'>('include');
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [excludedFiles, setExcludedFiles] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'files' | 'branches'>('files');
   
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const branchInputRef = useRef<HTMLInputElement>(null);
 
   // Organize files for better search
   const organizeFiles = (files: string[]) => {
@@ -77,7 +76,7 @@ export default function FileSelectionMode({
 
   const organizedFiles = organizeFiles(availableFiles);
 
-  // Enhanced file search with scoring and focus by negation
+  // Enhanced file search with scoring
   const searchFiles = (query: string): SearchResult[] => {
     if (!query.trim()) return [];
     
@@ -86,13 +85,6 @@ export default function FileSelectionMode({
     
     Object.entries(organizedFiles).forEach(([category, files]) => {
       files.forEach(file => {
-        // Apply focus by negation logic
-        const isExcluded = excludedFiles.has(file);
-        const isSelected = selectedFiles.has(file);
-        
-        if (focusMode === 'exclude' && isExcluded) return;
-        if (focusMode === 'include' && !isSelected && selectedFiles.size > 0) return;
-        
         const fileName = file.split('/').pop() || '';
         const filePath = file.toLowerCase();
         
@@ -118,54 +110,69 @@ export default function FileSelectionMode({
     return results.sort((a, b) => b.score - a.score);
   };
 
-  const searchResults = searchFiles(searchTerm);
+  const fileSearchResults = searchFiles(fileSearchTerm);
 
-  // Load branches and commits when switching to branch mode
+  // Load branches and commits when component mounts
   useEffect(() => {
-    if (currentMode === 'branch' && branches.length === 0) {
-        const loadBranchesAndCommits = async () => {
-    try {
-      // Load branches and commits from the backend
-      const [branchesData, commitsData] = await Promise.all([
-        getGitBranches(directory),
-        getGitCommits(directory, 50)
-      ]);
-      
-      setBranches(branchesData);
-      setCommits(commitsData.map(commit => ({
-        hash: commit.hash,
-        author: commit.author,
-        date: commit.date,
-        message: commit.message
-      })));
-    } catch (error) {
-      console.error('Failed to load branches and commits:', error);
-    }
-  };
-      
-      loadBranchesAndCommits();
-    }
-  }, [currentMode, branches.length, directory]);
+    const loadBranchesAndCommits = async () => {
+      try {
+        const [branchesData, commitsData] = await Promise.all([
+          getGitBranches(directory),
+          getGitCommits(directory, 50)
+        ]);
+        
+        setBranches(branchesData);
+        setCommits(commitsData.map(commit => ({
+          hash: commit.hash,
+          author: commit.author,
+          date: commit.date,
+          message: commit.message
+        })));
+      } catch (error) {
+        console.error('Failed to load branches and commits:', error);
+      }
+    };
+    
+    loadBranchesAndCommits();
+  }, [directory]);
 
-  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (currentMode === 'file' && searchResults.length === 0) return;
-    if (currentMode === 'branch' && commits.length === 0) return;
+  const handleFileSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (fileSearchResults.length === 0) return;
     
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      const maxIndex = currentMode === 'file' ? searchResults.length - 1 : commits.length - 1;
-      setFocusedResult((prev) => Math.min(prev + 1, maxIndex));
+      setFocusedFileResult((prev) => Math.min(prev + 1, fileSearchResults.length - 1));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setFocusedResult((prev) => Math.max(prev - 1, 0));
+      setFocusedFileResult((prev) => Math.max(prev - 1, 0));
     } else if (event.key === "Enter") {
       event.preventDefault();
-      if (currentMode === 'file') {
-        const result = searchResults[focusedResult];
-        if (result) onFileSelect(result.file);
-      } else {
-        const commit = commits[focusedResult];
-        if (commit) onCommitSelect(commit.hash);
+      const result = fileSearchResults[focusedFileResult];
+      if (result) onFileSelect(result.file);
+    }
+  };
+
+  const handleBranchSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const filteredCommits = commits.filter(commit => 
+      commit.hash.toLowerCase().includes(branchSearchTerm.toLowerCase()) ||
+      commit.author.toLowerCase().includes(branchSearchTerm.toLowerCase()) ||
+      commit.message.toLowerCase().includes(branchSearchTerm.toLowerCase())
+    );
+    
+    if (filteredCommits.length === 0) return;
+    
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setFocusedBranchResult((prev) => Math.min(prev + 1, filteredCommits.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setFocusedBranchResult((prev) => Math.max(prev - 1, 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const commit = filteredCommits[focusedBranchResult];
+      if (commit) {
+        onCommitSelect(commit.hash);
+        setSelectedCommit(commit.hash);
       }
     }
   };
@@ -186,397 +193,337 @@ export default function FileSelectionMode({
     );
   };
 
-  // Focus handlers for smooth pane interactions
-  const handleLeftPaneEnter = () => {
-    setLeftPaneFocused(true);
-    setRightPaneFocused(false);
-  };
-  
-  const handleRightPaneEnter = () => {
-    setRightPaneFocused(true);
-    setLeftPaneFocused(false);
-  };
-  
-  const handlePaneLeave = () => {
-    setLeftPaneFocused(false);
-    setRightPaneFocused(false);
-  };
-
-  // Focus by negation handlers
-  const handleFileToggle = (file: string) => {
-    if (focusMode === 'include') {
-      setSelectedFiles(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(file)) {
-          newSet.delete(file);
-        } else {
-          newSet.add(file);
-        }
-        return newSet;
-      });
-    } else {
-      setExcludedFiles(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(file)) {
-          newSet.delete(file);
-        } else {
-          newSet.add(file);
-        }
-        return newSet;
-      });
-    }
-  };
-
-  const clearFocus = () => {
-    setSelectedFiles(new Set());
-    setExcludedFiles(new Set());
-  };
+  const filteredCommits = commits.filter(commit => 
+    commit.hash.toLowerCase().includes(branchSearchTerm.toLowerCase()) ||
+    commit.author.toLowerCase().includes(branchSearchTerm.toLowerCase()) ||
+    commit.message.toLowerCase().includes(branchSearchTerm.toLowerCase())
+  );
 
   return (
     <motion.div 
-      className="min-h-screen bg-slate-50 dark:bg-slate-900"
+      className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
     >
-      <div className="split-layout w-full flex gap-4 px-6 py-8 min-h-[600px]">
-        {/* File Explorer Pane */}
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
         <motion.div 
-          className="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
-          animate={{
-            flex: leftPaneFocused ? 2 : rightPaneFocused ? 0.6 : 1,
-            scale: leftPaneFocused ? 1.02 : rightPaneFocused ? 0.98 : 1
-          }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
-          onMouseEnter={handleLeftPaneEnter}
-          onMouseLeave={handlePaneLeave}
+          className="mb-8"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
         >
-          <div className="p-6 h-full">
-            <motion.div 
-              className="header mb-6"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
-                <TreeStructure size={20} className="text-blue-600 dark:text-blue-400" />
-                Files
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400">{availableFiles.length} files found</p>
-            </motion.div>
-
-            {/* Focus by Negation Controls */}
-            <motion.div 
-              className="focus-controls mb-6 p-4 bg-slate-50 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.15 }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">Focus Mode</h3>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={clearFocus}
-                  className="text-xs"
-                >
-                  Clear
-                </Button>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant={focusMode === 'include' ? 'default' : 'outline'}
-                  onClick={() => setFocusMode('include')}
-                  className="flex items-center gap-1"
-                >
-                  <Plus size={14} />
-                  Include
-                </Button>
-                <Button
-                  size="sm"
-                  variant={focusMode === 'exclude' ? 'default' : 'outline'}
-                  onClick={() => setFocusMode('exclude')}
-                  className="flex items-center gap-1"
-                >
-                  <Minus size={14} />
-                  Exclude
-                </Button>
-              </div>
-              
-              {focusMode === 'include' && selectedFiles.size > 0 && (
-                <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">
-                  Showing only {selectedFiles.size} selected files
-                </div>
-              )}
-              
-              {focusMode === 'exclude' && excludedFiles.size > 0 && (
-                <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">
-                  Excluding {excludedFiles.size} files
-                </div>
-              )}
-            </motion.div>
-
-            <motion.div 
-              className="search-section mb-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <div className="relative">
-                <MagnifyingGlass size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-                <Input
-                  ref={inputRef}
-                  className="pl-10 pr-10 bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Search files..."
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  value={searchTerm}
-                  onKeyDown={handleSearchKeyDown}
-                />
-                {searchTerm && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-600"
-                  >
-                    <X size={14} />
-                  </Button>
-                )}
-              </div>
-            </motion.div>
-
-            <div className="file-results max-h-[500px] overflow-y-auto">
-              <AnimatePresence mode="wait">
-                {searchTerm ? (
-                  <motion.div 
-                    key="search-results"
-                    className="space-y-2"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {searchResults.map((result, idx) => (
-                      <CleanFileCard
-                        key={result.file}
-                        file={result.file}
-                        idx={idx}
-                        focusedResult={focusedResult}
-                        selectFile={onFileSelect}
-                        searchTerm={searchTerm}
-                        highlightMatch={highlightMatch}
-                        score={result.score}
-                        focusMode={focusMode}
-                        isSelected={focusMode === 'include' ? selectedFiles.has(result.file) : excludedFiles.has(result.file)}
-                        onToggle={handleFileToggle}
-                      />
-                    ))}
-                    {searchResults.length === 0 && (
-                      <div className="text-center py-12 text-slate-500 dark:text-slate-400">
-                        <TreeStructure size={32} className="mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No files found</p>
-                      </div>
-                    )}
-                  </motion.div>
-                ) : (
-                  <motion.div 
-                    key="file-categories"
-                    className="space-y-4"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {Object.entries(organizedFiles).map(([category, files], categoryIndex) => {
-                      const filteredFiles = files.filter(file => {
-                        if (focusMode === 'exclude' && excludedFiles.has(file)) return false;
-                        if (focusMode === 'include' && selectedFiles.size > 0 && !selectedFiles.has(file)) return false;
-                        return true;
-                      });
-                      
-                      if (filteredFiles.length === 0) return null;
-                      
-                      return (
-                        <motion.div 
-                          key={category} 
-                          className="file-category"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: categoryIndex * 0.05 }}
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <h3 className="font-medium text-slate-700 dark:text-slate-300">{category}</h3>
-                            <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
-                              {filteredFiles.length}/{files.length}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-1 gap-1">
-                            {filteredFiles.map((file) => (
-                              <CleanFileCard
-                                key={file}
-                                file={file}
-                                idx={-1}
-                                focusedResult={-1}
-                                selectFile={onFileSelect}
-                                searchTerm=""
-                                highlightMatch={highlightMatch}
-                                focusMode={focusMode}
-                                isSelected={focusMode === 'include' ? selectedFiles.has(file) : excludedFiles.has(file)}
-                                onToggle={handleFileToggle}
-                              />
-                            ))}
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            Repository Explorer
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400">
+            Select files to view their history or explore branches and commits
+          </p>
         </motion.div>
 
-        {/* Branch Explorer Pane */}
+        {/* Tab Navigation */}
         <motion.div 
-          className="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
-          animate={{
-            flex: rightPaneFocused ? 2 : leftPaneFocused ? 0.6 : 1,
-            scale: rightPaneFocused ? 1.02 : leftPaneFocused ? 0.98 : 1
-          }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
-          onMouseEnter={handleRightPaneEnter}
-          onMouseLeave={handlePaneLeave}
+          className="flex gap-1 mb-6 bg-white dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
         >
-          <div className="p-6 h-full">
-            <motion.div 
-              className="header mb-6"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
+          <button
+            type="button"
+            onClick={() => setActiveTab('files')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'files'
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+            }`}
+          >
+            <FileText size={16} />
+            Files ({availableFiles.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('branches')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'branches'
+                ? 'bg-green-500 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+            }`}
+          >
+            <GitBranch size={16} />
+            Branches & Commits ({branches.length})
+          </button>
+        </motion.div>
+
+        <AnimatePresence mode="wait">
+          {activeTab === 'files' ? (
+            <motion.div
+              key="files-tab"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
             >
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
-                <GitBranch size={20} className="text-green-600 dark:text-green-400" />
-                Branches & Commits
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400">{branches.length} branches • {commits.length} commits</p>
-            </motion.div>
-
-            <motion.div 
-              className="search-section mb-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.25 }}
-            >
-              <div className="relative">
-                <Hash size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-                <Input
-                  className="pl-10 bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Search branches & commits..."
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  value={searchTerm}
-                  onKeyDown={handleSearchKeyDown}
-                />
-              </div>
-            </motion.div>
-
-            <div className="branch-content max-h-[500px] overflow-y-auto space-y-6">
-              <div className="branches-section">
-                <h3 className="font-medium text-slate-700 dark:text-slate-300 mb-3">Branches</h3>
-                <div className="grid grid-cols-1 gap-2 mb-6">
-                  {branches.map((branch) => (
-                    <button
-                      key={branch}
-                      type="button"
-                      onClick={() => onBranchSelect(branch)}
-                      className="branch-card p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors text-left group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <GitBranch size={16} className="text-green-600 dark:text-green-400" />
-                        <span className="font-medium text-slate-900 dark:text-slate-100">{branch}</span>
-                      </div>
-                    </button>
-                  ))}
+              <div className="p-6">
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
+                    <TreeStructure size={20} className="text-blue-600 dark:text-blue-400" />
+                    Files
+                  </h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Select a file to view its commit history
+                  </p>
                 </div>
-              </div>
 
-              <div className="commits-section">
-                <h3 className="font-medium text-slate-700 dark:text-slate-300 mb-3">Recent Commits</h3>
-                <div className="space-y-2">
-                  {commits
-                    .filter(commit => 
-                      commit.hash.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      commit.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      commit.message.toLowerCase().includes(searchTerm.toLowerCase())
-                    )
-                    .slice(0, 10)
-                    .map((commit) => (
-                      <CleanCommitCard
-                        key={commit.hash}
-                        commit={commit}
-                        idx={0}
-                        focusedResult={focusedResult}
-                        onSelect={(hash) => {
-                          onCommitSelect(hash);
-                          setSelectedCommit(hash);
-                        }}
-                        searchTerm={searchTerm}
-                        highlightMatch={highlightMatch}
-                        isSelected={selectedCommit === commit.hash}
-                      />
-                    ))}
-                </div>
-              </div>
-
-              <div className="virtual-branch-section bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
-                <h3 className="font-medium text-slate-700 dark:text-slate-300 mb-2">Create Virtual Branch</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-                  Create a virtual branch from any commit to explore changes.
-                </p>
-                <div className="flex gap-2">
+                {/* Search */}
+                <div className="relative mb-6">
+                  <MagnifyingGlass size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                   <Input
-                    placeholder="Branch name"
-                    value={virtualBranchName}
-                    onChange={(e) => setVirtualBranchName(e.target.value)}
-                    className="flex-1 text-sm"
+                    ref={fileInputRef}
+                    className="pl-10 pr-10 bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Search files..."
+                    onChange={(e) => setFileSearchTerm(e.target.value)}
+                    value={fileSearchTerm}
+                    onKeyDown={handleFileSearchKeyDown}
                   />
-                  <Button
-                    onClick={() => {
-                      if (selectedCommit && virtualBranchName) {
-                        onCreateVirtualBranch(selectedCommit, virtualBranchName);
-                        setVirtualBranchName('');
-                        setSelectedCommit('');
-                      }
-                    }}
-                    disabled={!selectedCommit || !virtualBranchName}
-                    size="sm"
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    Create
-                  </Button>
+                  {fileSearchTerm && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setFileSearchTerm("")}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-600"
+                    >
+                      <X size={14} />
+                    </Button>
+                  )}
+                </div>
+
+                {/* File Results */}
+                <div className="max-h-[600px] overflow-y-auto">
+                  <AnimatePresence mode="wait">
+                    {fileSearchTerm ? (
+                      <motion.div 
+                        key="search-results"
+                        className="space-y-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {fileSearchResults.map((result, idx) => (
+                          <FileCard
+                            key={result.file}
+                            file={result.file}
+                            idx={idx}
+                            focusedResult={focusedFileResult}
+                            selectFile={onFileSelect}
+                            searchTerm={fileSearchTerm}
+                            highlightMatch={highlightMatch}
+                          />
+                        ))}
+                        {fileSearchResults.length === 0 && (
+                          <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                            <FileText size={32} className="mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No files found</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    ) : (
+                      <motion.div 
+                        key="file-categories"
+                        className="space-y-6"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {Object.entries(organizedFiles).map(([category, files], categoryIndex) => (
+                          <motion.div 
+                            key={category} 
+                            className="file-category"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: categoryIndex * 0.05 }}
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                <Folder size={16} />
+                                {category}
+                              </h3>
+                              <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
+                                {files.length} files
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
+                              {files.map((file) => (
+                                <FileCard
+                                  key={file}
+                                  file={file}
+                                  idx={-1}
+                                  focusedResult={-1}
+                                  selectFile={onFileSelect}
+                                  searchTerm=""
+                                  highlightMatch={highlightMatch}
+                                />
+                              ))}
+                            </div>
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
-            </div>
-          </div>
-        </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="branches-tab"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
+            >
+              <div className="p-6">
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
+                    <GitBranch size={20} className="text-green-600 dark:text-green-400" />
+                    Branches & Commits
+                  </h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Explore branches and commit history
+                  </p>
+                </div>
+
+                {/* Search */}
+                <div className="relative mb-6">
+                  <Hash size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                  <Input
+                    ref={branchInputRef}
+                    className="pl-10 pr-10 bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-green-500 focus:border-green-500"
+                    placeholder="Search branches & commits..."
+                    onChange={(e) => setBranchSearchTerm(e.target.value)}
+                    value={branchSearchTerm}
+                    onKeyDown={handleBranchSearchKeyDown}
+                  />
+                  {branchSearchTerm && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setBranchSearchTerm("")}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-600"
+                    >
+                      <X size={14} />
+                    </Button>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="max-h-[600px] overflow-y-auto space-y-6">
+                  {/* Branches Section */}
+                  <div className="branches-section">
+                    <h3 className="font-medium text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                      <GitBranch size={16} />
+                      Branches
+                    </h3>
+                    <div className="grid grid-cols-1 gap-2 mb-6">
+                      {branches.map((branch) => (
+                        <button
+                          key={branch}
+                          type="button"
+                          onClick={() => onBranchSelect(branch)}
+                          className="branch-card p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors text-left group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <GitBranch size={16} className="text-green-600 dark:text-green-400" />
+                            <span className="font-medium text-slate-900 dark:text-slate-100">{branch}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Commits Section */}
+                  <div className="commits-section">
+                    <h3 className="font-medium text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                      <GitCommit size={16} />
+                      Recent Commits
+                    </h3>
+                    <div className="space-y-2">
+                      {filteredCommits.slice(0, 10).map((commit, idx) => (
+                        <CommitCard
+                          key={commit.hash}
+                          commit={commit}
+                          idx={idx}
+                          focusedResult={focusedBranchResult}
+                          onSelect={(hash) => {
+                            onCommitSelect(hash);
+                            setSelectedCommit(hash);
+                          }}
+                          searchTerm={branchSearchTerm}
+                          highlightMatch={highlightMatch}
+                          isSelected={selectedCommit === commit.hash}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Virtual Branch Creation */}
+                  {selectedCommit && (
+                    <motion.div 
+                      className="virtual-branch-section bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <h3 className="font-medium text-slate-700 dark:text-slate-300 mb-2">Create Virtual Branch</h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                        Create a virtual branch from the selected commit.
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Branch name"
+                          value={virtualBranchName}
+                          onChange={(e) => setVirtualBranchName(e.target.value)}
+                          className="flex-1 text-sm"
+                        />
+                        <Button
+                          onClick={() => {
+                            if (selectedCommit && virtualBranchName) {
+                              onCreateVirtualBranch(selectedCommit, virtualBranchName);
+                              setVirtualBranchName('');
+                              setSelectedCommit('');
+                            }
+                          }}
+                          disabled={!selectedCommit || !virtualBranchName}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          Create
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
 }
 
-function CleanFileCard({
+function FileCard({
   file,
   idx,
   focusedResult,
   selectFile,
   searchTerm,
   highlightMatch,
-  score,
-  focusMode,
-  isSelected,
-  onToggle,
 }: {
   file: string;
   idx: number;
@@ -584,10 +531,6 @@ function CleanFileCard({
   selectFile: (file: string) => void;
   searchTerm: string;
   highlightMatch: (text: string, query: string) => React.ReactNode;
-  score?: number;
-  focusMode?: 'include' | 'exclude';
-  isSelected?: boolean;
-  onToggle?: (file: string) => void;
 }) {
   const fileExtension = file.split('.').pop()?.toLowerCase() || '';
   const fileName = file.split('/').pop() || '';
@@ -595,66 +538,40 @@ function CleanFileCard({
   const fileColor = getFileTypeColor(file);
   
   return (
-    <div className="flex items-center gap-2">
-      {onToggle && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle(file);
-          }}
-          className={`focus-toggle p-1 rounded transition-colors ${
-            isSelected 
-              ? focusMode === 'include' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-red-500 text-white'
-              : 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-500'
-          }`}
+    <button
+      type="button"
+      className={`file-card p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors text-left w-full ${
+        idx === focusedResult ? "ring-2 ring-blue-500" : ""
+      }`}
+      onClick={() => selectFile(file)}
+    >
+      <div className="flex items-center gap-3">
+        <div 
+          className="file-type-indicator w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold text-white"
+          style={{ backgroundColor: fileColor }}
+          title={`${fileExtension.toUpperCase()} file`}
         >
-          {focusMode === 'include' ? <Plus size={12} /> : <Minus size={12} />}
-        </button>
-      )}
-      
-      <button
-        type="button"
-        className={`file-card p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors text-left flex-1 ${
-          idx === focusedResult ? "ring-2 ring-blue-500" : ""
-        } ${isSelected ? focusMode === 'include' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700' : ""}`}
-        onClick={() => selectFile(file)}
-      >
-        <div className="flex items-center gap-3">
-          <div 
-            className="file-type-indicator w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold text-white"
-            style={{ backgroundColor: fileColor }}
-            title={`${fileExtension.toUpperCase()} file`}
-          >
-            {fileExtension.charAt(0).toUpperCase() || 'F'}
-          </div>
-          
-          <div className="file-details flex-1 min-w-0">
-            <div className="file-name font-medium text-slate-900 dark:text-slate-100 truncate">
-              {highlightMatch(fileName, searchTerm)}
-            </div>
-            {filePath && (
-              <div className="file-path text-sm text-slate-500 dark:text-slate-400 truncate">
-                {filePath}/
-              </div>
-            )}
-            {score && (
-              <div className="score text-xs text-slate-400 dark:text-slate-500">
-                Match: {score}
-              </div>
-            )}
-          </div>
-          
-          <FileIcon fileName={file} size={16} className="text-slate-400" />
+          {fileExtension.charAt(0).toUpperCase() || 'F'}
         </div>
-      </button>
-    </div>
+        
+        <div className="file-details flex-1 min-w-0">
+          <div className="file-name font-medium text-slate-900 dark:text-slate-100 truncate">
+            {highlightMatch(fileName, searchTerm)}
+          </div>
+          {filePath && (
+            <div className="file-path text-sm text-slate-500 dark:text-slate-400 truncate">
+              {filePath}/
+            </div>
+          )}
+        </div>
+        
+        <FileIcon fileName={file} size={16} className="text-slate-400" />
+      </div>
+    </button>
   );
 }
 
-function CleanCommitCard({
+function CommitCard({
   commit,
   idx,
   focusedResult,
