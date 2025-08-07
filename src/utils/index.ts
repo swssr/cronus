@@ -666,3 +666,59 @@ export function truncateText(text: string, maxLength: number): string {
   return text.substring(0, maxLength) + '...';
 }
 
+// Build a lightweight story summary for a file from its commit list
+export function computeFileStory(commits: Commit[]) {
+  if (!commits || commits.length === 0) {
+    return null;
+  }
+
+  // Assuming commits are ordered newest -> oldest
+  const newest = commits[0];
+  const oldest = commits[commits.length - 1];
+
+  // Top authors by frequency
+  const authorCounts = new Map<string, number>();
+  for (const c of commits) {
+    authorCounts.set(c.author, (authorCounts.get(c.author) || 0) + 1);
+  }
+  const topAuthors = Array.from(authorCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => ({ name, commits: count }));
+
+  // Rough change magnitudes by content length delta
+  let largestChangeIndex = 0;
+  let largestChangeMagnitude = 0;
+  let totalChurn = 0;
+  for (let i = 0; i < commits.length - 1; i++) {
+    const a = commits[i]?.content || "";
+    const b = commits[i + 1]?.content || "";
+    const delta = Math.abs(a.length - b.length);
+    totalChurn += delta;
+    if (delta > largestChangeMagnitude) {
+      largestChangeMagnitude = delta;
+      largestChangeIndex = i;
+    }
+  }
+
+  // Time span
+  const startDate = new Date(oldest.date);
+  const endDate = new Date(newest.date);
+  const timespanDays = Math.max(1, Math.round((+endDate - +startDate) / (1000 * 60 * 60 * 24)));
+
+  return {
+    newest,
+    oldest,
+    totalCommits: commits.length,
+    timespanDays,
+    topAuthors,
+    totalChurn,
+    largestChange: {
+      commit: commits[largestChangeIndex],
+      nextCommit: commits[largestChangeIndex + 1] || null,
+      magnitude: largestChangeMagnitude,
+      index: largestChangeIndex,
+    },
+  } as const;
+}
+

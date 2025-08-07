@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
 import { useMomentumScroll } from "../hooks/useMomentumScroll";
 import type { Commit } from "../types";
-import { getFileLanguage } from "../utils/index";
+import { computeFileStory, getFileLanguage } from "../utils/index";
 
 import {
   ArrowsClockwise,
@@ -47,9 +47,10 @@ export function EnhancedImmersiveView({
   const [selectedCommits, setSelectedCommits] = useState<Set<string>>(
     new Set()
   );
-  const [viewMode, setViewMode] = useState<"timeline" | "tree" | "virtual">(
-    "virtual"
+  const [viewMode, setViewMode] = useState<"timeline" | "tree" | "virtual" | "story">(
+    "story"
   );
+  const story = computeFileStory(commits);
 
   // Setup momentum scrolling
   useMomentumScroll(containerRef, {
@@ -169,7 +170,8 @@ export function EnhancedImmersiveView({
   }, []);
 
   const toggleViewMode = () => {
-    const modes: Array<"timeline" | "tree" | "virtual"> = [
+    const modes: Array<"timeline" | "tree" | "virtual" | "story"> = [
+      "story",
       "timeline",
       "tree",
       "virtual",
@@ -313,6 +315,7 @@ export function EnhancedImmersiveView({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
+            {viewMode === "story" && <GitCommit size={16} />}
             {viewMode === "timeline" && <Clock size={16} />}
             {viewMode === "tree" && <TreeStructure size={16} />}
             {viewMode === "virtual" && <GitBranch size={16} />}
@@ -479,6 +482,60 @@ export function EnhancedImmersiveView({
           </button>
         </div>
       </motion.div>
+
+      {/* Story View */}
+      {viewMode === "story" && story && (
+        <main
+          ref={containerRef}
+          className="px-6 pb-20 max-h-screen overflow-y-auto custom-scrollbar"
+          style={{ paddingTop: "120px" }}
+        >
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">The story of {fileName}</h2>
+              <p className="text-slate-600 dark:text-slate-400 text-sm">
+                {story.totalCommits} commits over {story.timespanDays} days. First seen on {new Date(story.oldest.date).toLocaleDateString()} — last updated on {new Date(story.newest.date).toLocaleDateString()}.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+                <h3 className="font-medium mb-2 text-slate-900 dark:text-slate-100">Top authors</h3>
+                <ul className="text-sm text-slate-700 dark:text-slate-300 space-y-1">
+                  {story.topAuthors.map((a) => (
+                    <li key={a.name} className="flex justify-between">
+                      <span>{a.name}</span>
+                      <span className="opacity-70">{a.commits} commits</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+                <h3 className="font-medium mb-2 text-slate-900 dark:text-slate-100">Largest change</h3>
+                <p className="text-sm text-slate-700 dark:text-slate-300">Commit {story.largestChange.commit.hash.slice(0,7)} changed the file the most.</p>
+                <div className="mt-3">
+                  <button
+                    className="px-3 py-1.5 text-sm rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600"
+                    onClick={() => scrollToItem(story.largestChange.index)}
+                  >
+                    Jump to commit
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+              <h3 className="font-medium mb-3 text-slate-900 dark:text-slate-100">Narrative</h3>
+              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                <li>First appeared in {new Date(story.oldest.date).toLocaleDateString()} as part of "{story.oldest.message}".</li>
+                <li>Most significant change around commit {story.largestChange.commit.hash.slice(0,7)}.</li>
+                <li>Owned mainly by {story.topAuthors[0]?.name ?? 'unknown'} with {story.topAuthors[0]?.commits ?? 0} commits.</li>
+              </ol>
+            </div>
+          </div>
+        </main>
+      )}
 
       {/* Main Timeline Content */}
       <main
