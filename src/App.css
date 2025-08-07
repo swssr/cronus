@@ -58,7 +58,8 @@ body {
         "Helvetica Neue", Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: var(--background);
+    /* background: var(--background); */
+    background: transparent;
     color: var(--text-primary);
     margin: 0;
     padding: 0;
@@ -69,7 +70,7 @@ body {
 }
 
 .app-container {
-    background: var(--background);
+    background: color-mix(in srgb, var(--background) 96%, transparent);
     @apply overflow-x-hidden overflow-y-auto h-dvh m-0 p-0;
 }
 
