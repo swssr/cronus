@@ -4,6 +4,7 @@ use tauri::command;
 use std::fs;
 use serde::{Serialize, Deserialize};
 
+// !!TODo: Move to types.rs
 #[derive(Clone, Serialize, Deserialize)]
 struct GitFileStatus {
     path: String,
@@ -217,7 +218,11 @@ fn get_git_branches(repo_path: String) -> Result<Vec<String>, String> {
 
 #[command]
 fn get_git_commits(repo_path: String, limit: Option<usize>) -> Result<String, String> {
-    let path = PathBuf::from(&repo_path);
+    let mut path = PathBuf::from(&repo_path);
+    // const path = fs.dir(repo_path);
+    // let / var 
+
+    path = null;
     
     if !path.is_dir() {
         return Err("Path is not a directory".to_string());

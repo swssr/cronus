@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
+import { useNavigate } from '@tanstack/react-router';
 import { 
   FolderOpenIcon, 
   SpinnerIcon,
   WarningIcon
 } from '@phosphor-icons/react';
+import { addRecentRepository } from '../utils/index';
 
 interface FilePickerProps {
-  onDirectorySelected: (path: string) => Promise<void>;
   isLoading?: boolean;
 }
 
-export function FilePicker({ onDirectorySelected, isLoading = false }: FilePickerProps) {
+export function FilePicker({ isLoading = false }: FilePickerProps) {
   const [isPicking, setIsPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const handlePickDirectory = async () => {
     setIsPicking(true);
@@ -27,7 +29,11 @@ export function FilePicker({ onDirectorySelected, isLoading = false }: FilePicke
       });
 
       if (typeof selected === "string") {
-        await onDirectorySelected(selected);
+        // Add to recent repositories
+        addRecentRepository(selected, 0);
+        
+        // Navigate to the repository files view
+        navigate({ to: `/repo/${encodeURIComponent(selected)}/files` });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to open directory');

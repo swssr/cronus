@@ -1,18 +1,39 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import RepoCard from "./RepoCard";
+import { RecentRepository } from '../types';
+import { 
+  getRecentRepositories, 
+  removeRecentRepository, 
+  clearRecentRepositories 
+} from '../utils/index';
 
-interface RecentRepoProps {
-  recentRepos: any[];
-  handleRemoveRecentRepo: (path: string) => void;
-  openRepository: (path: string) => void;
-  handleClearRecentRepos: () => void;
-}
+export default function RecentRepoCard() {
+  const [recentRepos, setRecentRepos] = useState<RecentRepository[]>([]);
+  const navigate = useNavigate();
 
-export default function RecentRepoCard({
-  handleClearRecentRepos,
-  recentRepos,
-  openRepository,
-  handleRemoveRecentRepo,
-}: RecentRepoProps) {
+  useEffect(() => {
+    setRecentRepos(getRecentRepositories());
+  }, []);
+
+  const handleRemoveRecentRepo = (path: string) => {
+    removeRecentRepository(path);
+    setRecentRepos(getRecentRepositories());
+  };
+
+  const handleClearRecentRepos = () => {
+    clearRecentRepositories();
+    setRecentRepos([]);
+  };
+
+  const openRepository = (path: string) => {
+    navigate({ to: `/repo/${encodeURIComponent(path)}/files` });
+  };
+
+  if (recentRepos.length === 0) {
+    return null;
+  }
+
   return (
     <div className="recent-repositories">
       <div className="recent-header">
@@ -32,6 +53,7 @@ export default function RecentRepoCard({
           <RepoCard
             key={repo.path}
             {...repo}
+            fileCount={repo.fileCount || 0}
             openRepository={openRepository}
             handleRemoveRecentRepo={handleRemoveRecentRepo}
           />

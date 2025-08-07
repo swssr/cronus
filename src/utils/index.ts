@@ -218,6 +218,16 @@ export async function getDirectoryFiles(dirPath: string): Promise<string[]> {
   }
 }
 
+export async function getRepoFiles(repoPath: string): Promise<string[]> {
+  try {
+    const files = await invoke<string[]>("list_directory_files", { dirPath: repoPath });
+    return files;
+  } catch (error) {
+    console.error("Error getting repository files:", error);
+    return [];
+  }
+}
+
 export function getFileLanguage(fileName: string): string {
   const ext = fileName.split(".").pop()?.toLowerCase();
   const langMap: Record<string, string> = {

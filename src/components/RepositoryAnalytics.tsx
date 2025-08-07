@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RepositoryAnalytics } from '../types';
-import { getTimeAgo } from '../utils/index';
+import { RepositoryAnalytics } from '@/types';
+import { getTimeAgo } from '@/utils/index';
 import { 
   ChartLine, 
   Users, 
