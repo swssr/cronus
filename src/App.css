@@ -43,6 +43,9 @@
     --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-spring: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     --transition-bounce: 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    border-radius: 20px;
+    overflow: hidden;
 }
 
 *, *::before, *::after {
@@ -59,9 +62,10 @@ body {
     color: var(--text-primary);
     margin: 0;
     padding: 0;
+    height: 100dvh;
     overflow: hidden;
     line-height: 1.5;
-    border-radius: 10px;
+    border-radius: 20px;
 }
 
 .app-container {
