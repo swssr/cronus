@@ -20,12 +20,8 @@ function CommitPage() {
         <SmartCommitAssistant
           repoPath={repoPath}
           gitStatus={gitStatus}
-          onStatusUpdate={() => {
-            // Refresh git status
-          }}
-          onCommitCreated={(commitHash) => {
-            // Handle commit created
-          }}
+          onStatusUpdate={() => {}}
+          onCommitCreated={() => {}}
         />
       )}
     </div>

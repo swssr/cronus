@@ -1,8 +1,8 @@
-import { Badge } from "./ui/badge";
-import { Folder, FolderSimpleDottedIcon, X, XIcon } from "@phosphor-icons/react";
+import { FolderSimpleDottedIcon, XIcon } from "@phosphor-icons/react";
 import {
   startTransition
 } from 'react';
+import { Badge } from "./ui/badge";
 
 interface RepoCarProps {
   path: string;

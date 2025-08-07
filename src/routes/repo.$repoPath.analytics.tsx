@@ -12,7 +12,7 @@ export const Route = createFileRoute('/repo/$repoPath/analytics')({
 })
 
 function AnalyticsPage() {
-  const { repoPath, analytics } = Route.useLoaderData()
+  const { analytics } = Route.useLoaderData()
 
   return (
     <div className="analytics-mode-container p-6">

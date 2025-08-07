@@ -1,22 +1,13 @@
 import { ReactElement, useRef } from "react";
 import {
-  MagnifyingGlass,
-  X,
-  GitCommit,
-  Question,
-  CaretLeft,
   CaretLeftIcon,
   GitCommitIcon,
   QuestionIcon,
-  CardsThreeIcon,
-  StackIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import { useNavigate, useLocation } from '@tanstack/react-router'
 import { useTheme } from '../contexts/ThemeContext'
 import { ThemeToggle } from './ThemeToggle'
-
-type ViewMode = "carousel" | "immersive";
 
 interface HeaderProps {
   onHelpClick?: () => void;

@@ -49,7 +49,6 @@ export default function FileSelectionMode({
   onCommitSelect,
   onCreateVirtualBranch,
   directory,
-  currentMode = 'file'
 }: FileSelectionModeProps) {
   const [fileSearchTerm, setFileSearchTerm] = useState('');
   const [branchSearchTerm, setBranchSearchTerm] = useState('');

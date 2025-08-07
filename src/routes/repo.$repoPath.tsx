@@ -1,5 +1,4 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
 import { getDirectoryFiles } from '../utils/index'
 
 export const Route = createFileRoute('/repo/$repoPath')({

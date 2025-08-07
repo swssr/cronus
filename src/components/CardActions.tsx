@@ -1,7 +1,7 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { ArrowSquareOutIcon, CopyIcon, DotsThreeVerticalIcon, DownloadSimpleIcon, EyeIcon, GitBranchIcon } from "@phosphor-icons/react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useCallback } from "react";
 import type { Commit } from "../types";
-import { ArrowSquareOutIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, GitBranchIcon } from "@phosphor-icons/react";
 
 interface CardActionsProps {
   commit: Commit;
@@ -122,7 +122,7 @@ export function CardActions({ commit, isActive, isHovered, onAction }: CardActio
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
               >
-                <MoreHorizontal size={14} />
+                <DotsThreeVerticalIcon size={14} />
                 <span className="more-hint">Click to see more</span>
               </motion.div>
             )}

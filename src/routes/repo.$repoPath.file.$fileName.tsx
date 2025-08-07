@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { EnhancedImmersiveView, CarouselView } from '@/views'
 import { useState } from 'react'
-import { getGitHistoryWithContent } from '@/utils/index'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { getGitHistoryWithContent } from '@/utils/index'
+import { CarouselView, EnhancedImmersiveView } from '@/views'
 
 export const Route = createFileRoute('/repo/$repoPath/file/$fileName')({
   component: FileViewPage,
@@ -15,9 +15,9 @@ export const Route = createFileRoute('/repo/$repoPath/file/$fileName')({
 })
 
 function FileViewPage() {
-  const { repoPath, fileName, history } = Route.useLoaderData()
-  const [viewMode, setViewMode] = useState<'carousel' | 'immersive'>('immersive')
-  const [cardsToShow, setCardsToShow] = useState<1 | 3 | 5>(3)
+  const { fileName, history } = Route.useLoaderData()
+  const [viewMode] = useState<'carousel' | 'immersive'>('immersive')
+  const [cardsToShow] = useState<1 | 3 | 5>(3)
 
   return (
     <ErrorBoundary
