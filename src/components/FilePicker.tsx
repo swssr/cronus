@@ -1,14 +1,7 @@
 import { useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { 
-  FolderOpen, 
-  Folder, 
-  GitBranch, 
-  CheckCircle, 
-  Warning, 
-  Spinner, 
-  SpinnerBallIcon,
-  FolderOpenIcon,
+  FolderOpenIcon, 
   SpinnerIcon,
   WarningIcon
 } from '@phosphor-icons/react';
@@ -46,31 +39,36 @@ export function FilePicker({ onDirectorySelected, isLoading = false }: FilePicke
   const showLoader = isLoading || isPicking;
 
   return (
-    <div className="file-picker w-md h-max cursor-pointer" onClick={handlePickDirectory} onKeyUp={handlePickDirectory} onKeyDown={handlePickDirectory} role="button" tabIndex={0}>
-      <div className="h-max flex flex-col items-center justify-center text-center">
-        <div className="file-picker-icon m-0!">
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="text-center">
+        <button
+          type="button"
+          className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:border-slate-400 dark:hover:border-slate-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={handlePickDirectory}
+          disabled={showLoader}
+        >
           {showLoader ? (
-            <SpinnerIcon size={64} className="animate-spin text-primary text-gray-500" weight="light" />
+            <SpinnerIcon size={32} className="animate-spin text-slate-500" weight="light" />
           ) : (
-            <FolderOpenIcon size={64} className="text-gray-500" weight="light" />
+            <FolderOpenIcon size={32} className="text-slate-500" weight="light" />
           )}
-        </div>
+        </button>
         
-        <h5 className="text-lg font-bold text-gray-500">
+        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
           {showLoader ? 'Loading Repository...' : 'Select a Repository'}
-        </h5>
+        </h3>
         
-        <p className="text-sm text-gray-500 font-light">
+        <p className="text-slate-600 dark:text-slate-400 mb-4">
           {showLoader 
-            ? 'Analyzing files history...' 
+            ? 'Analyzing files and commit history...' 
             : 'Choose a git repository to explore file history'
           }
         </p>
 
         {error && (
-          <div className="file-picker-error">
-            <WarningIcon className="w-5 h-5 text-destructive" weight="fill" />
-            <span>{error}</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
+            <WarningIcon className="w-4 h-4" weight="fill" />
+            <span className="text-sm">{error}</span>
           </div>
         )}
         
