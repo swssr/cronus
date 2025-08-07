@@ -16,8 +16,9 @@
         "width": 800,
         "height": 600,
         "alwaysOnTop": true,
-        "decorations": true,
-        "resizable": true
+        "decorations": false,
+        "resizable": true,
+        "transparent": true
       }
     ],
     "security": {

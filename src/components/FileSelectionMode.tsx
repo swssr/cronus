@@ -12,7 +12,8 @@ import {
   TreeStructure,
   GitCommit,
   FileText,
-  Folder
+  Folder,
+  GitCommitIcon
 } from '@phosphor-icons/react';
 import { FileIcon } from './FileIcon';
 import { getFileTypeColor, getAuthorColor, adjustColorOpacity } from '../utils/colorUtils';
@@ -449,7 +450,7 @@ export default function FileSelectionMode({
                   {/* Commits Section */}
                   <div className="commits-section">
                     <h3 className="font-medium text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-                      <GitCommit size={16} />
+                      <GitCommitIcon size={16} />
                       Recent Commits
                     </h3>
                     <div className="space-y-2">

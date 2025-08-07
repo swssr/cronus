@@ -68,7 +68,7 @@ export default function AppHeader({
   const isFileHistoryView = !!fileName;
 
   return (
-    <header className="app-header-clean flex items-center" data-tuari-drag-region>
+    <header className="app-header-clean flex items-center" data-tauri-drag-region>
       {/* Left Section */}
       {left}
 
