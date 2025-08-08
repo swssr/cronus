@@ -2,6 +2,11 @@
 
 ### High-impact next
 - [ ] Hunk/line staging UI (stage/unstage by hunk and line)
+  - [x] Backend: apply_index_patch (index patch apply/reverse)
+  - [ ] Backend: return unified diffs per-file (working vs HEAD, staged vs HEAD) segmented into hunks
+  - [ ] UI: per-hunk and per-line selection with Stage/Unstage
+  - [ ] State: recompute staged/unstaged diffs incrementally
+  - [ ] Safety: preview patch, revert-on-failure
 - [ ] Complete remote workflow: auth (SSH/HTTPS), ahead/behind UI, set upstream, progress, force-with-lease toggle
 - [ ] Branch CRUD: create/rename/delete/checkout, plus non-FF merge with 3-way conflict UI
 - [ ] Interactive rebase UI (reorder, squash, fixup, reword, edit)
