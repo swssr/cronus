@@ -20,6 +20,7 @@ import {
   GitBranch,
   GitCommit,
   TreeStructure,
+  XIcon,
 } from "@phosphor-icons/react";
 import { CommitStatsVisualization } from "../components/CommitStatsVisualization";
 import {
@@ -382,17 +383,11 @@ export function EnhancedImmersiveView({
               <div className="stats-panel-header">
                 <h3>Repository Statistics</h3>
                 <button
+                  type="button"
                   className="stats-close-button"
                   onClick={() => setShowStats(false)}
                 >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                  >
-                    <path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z" />
-                  </svg>
+                  <XIcon size={16} />
                 </button>
               </div>
               <CommitStatsVisualization commits={commits} />
@@ -523,6 +518,7 @@ export function EnhancedImmersiveView({
                 <p className="text-sm text-slate-700 dark:text-slate-300">Commit {story.largestChange.commit.hash.slice(0,7)} changed the file the most.</p>
                 <div className="mt-3">
                   <button
+                    type="button"
                     className="px-3 py-1.5 text-sm rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600"
                     onClick={() => scrollToItem(story.largestChange.index)}
                   >
@@ -555,6 +551,7 @@ export function EnhancedImmersiveView({
             <div className="bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex items-center justify-between">
               <div className="text-slate-700 dark:text-slate-300 text-sm">Comparing two versions of {fileName}</div>
               <button
+                type="button"
                 className="px-3 py-1.5 text-xs rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600"
                 onClick={() => setSelectedCommits(new Set())}
               >
@@ -705,6 +702,7 @@ export function EnhancedImmersiveView({
                           <span>{date.toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                           <span>•</span>
                           <button
+                            type="button"
                             onClick={(e) => { e.stopPropagation(); copyToClipboard(commit.hash); }}
                             className="font-mono hover:underline"
                             title="Copy commit hash"
@@ -750,7 +748,6 @@ export function EnhancedImmersiveView({
                         </motion.div>
                       )}
                     </AnimatePresence>
-                  </motion.div>
                 </motion.div>
               );
             })}
