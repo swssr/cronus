@@ -1,8 +1,7 @@
-import React, { useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useMemo, useCallback } from 'react';
 import { GitGraph, GitGraphNode } from '../types';
 import { getTimeAgo, truncateText } from '../utils/index';
-import { GitCommit, Copy } from '@phosphor-icons/react';
+import { GitCommit } from '@phosphor-icons/react';
 
 interface GitGraphVisualizationProps {
   graph: GitGraph;

@@ -233,3 +233,38 @@ export function getActivityColor(changesCount: number): string {
   if (changesCount < 50) return '#FF9F0A';     // High activity - orange
   return '#FF453A';                            // Very high activity - red
 }
+
+/**
+ * Map a date (YYYY-MM-DD or ISO) to a recency color.
+ * Today/very recent -> green, older -> yellow/orange, stale -> gray.
+ */
+export function getRecencyColor(dateStr?: string): string {
+  if (!dateStr) return '#8E8E93';
+  const parsed = new Date(dateStr);
+  if (isNaN(parsed.getTime())) return '#8E8E93';
+
+  const now = new Date();
+  const days = Math.floor((now.getTime() - parsed.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (days <= 1) return '#30D158';      // today / yesterday
+  if (days <= 7) return '#34C759';      // this week
+  if (days <= 30) return '#FFD60A';     // this month
+  if (days <= 90) return '#FF9F0A';     // this quarter
+  return '#8E8E93';                     // older
+}
+
+/**
+ * Pick a readable text color (dark or light) for a given hex background.
+ * Returns '#111827' (slate-900) for light backgrounds, '#FFFFFF' for dark ones.
+ */
+export function getReadableTextColor(hexColor: string): string {
+  const hex = hexColor.replace('#', '');
+  if (hex.length !== 6) return '#FFFFFF';
+  const r = parseInt(hex.substr(0, 2), 16) / 255;
+  const g = parseInt(hex.substr(2, 2), 16) / 255;
+  const b = parseInt(hex.substr(4, 2), 16) / 255;
+  // Per WCAG relative luminance
+  const lum = [r, g, b].map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  const L = 0.2126 * lum[0] + 0.7152 * lum[1] + 0.0722 * lum[2];
+  return L > 0.5 ? '#111827' : '#FFFFFF';
+}

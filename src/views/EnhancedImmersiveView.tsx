@@ -48,7 +48,7 @@ export function EnhancedImmersiveView({
   const [selectedCommits, setSelectedCommits] = useState<Set<string>>(
     new Set()
   );
-  const [workingItems, setWorkingItems] = useState<Array<{ hash: string; content: string }>>([]);
+  const [, setWorkingItems] = useState<Array<{ hash: string; content: string }>>([]);
   const [viewMode, setViewMode] = useState<"timeline" | "tree" | "virtual" | "story">(
     "story"
   );
@@ -561,13 +561,13 @@ export function EnhancedImmersiveView({
             <DiffEditor
               height="70vh"
               original={(() => {
-                const [a, b] = Array.from(selectedCommits);
-                const original = commits.find((c) => c.hash === a)?.content || "";
+                const arr = Array.from(selectedCommits);
+                const original = commits.find((c) => c.hash === arr[0])?.content || "";
                 return original;
               })()}
               modified={(() => {
-                const [a, b] = Array.from(selectedCommits);
-                const modified = commits.find((c) => c.hash === b)?.content || "";
+                const arr = Array.from(selectedCommits);
+                const modified = commits.find((c) => c.hash === arr[1])?.content || "";
                 return modified;
               })()}
               language={getFileLanguage(fileName)}
@@ -592,13 +592,14 @@ export function EnhancedImmersiveView({
           <div className="timeline-items-enhanced space-y-3">
             {commits.map((commit, index) => {
               const isActive = index === activeIndex;
-              const isHovered = hoveredIndex === index;
+              // hoveredIndex currently not used in rendering
+              void hoveredIndex;
               const stats = getStats(commit);
               const date = new Date(commit.date);
               const authorColor = getAuthorColor(commit.author);
 
-              const commitBadge = getCommitBadge(commit.message);
-              const activityColor = getActivityColor(
+              void getCommitBadge(commit.message);
+              void getActivityColor(
                 stats.additions + stats.deletions
               );
 

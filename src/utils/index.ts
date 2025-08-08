@@ -228,6 +228,71 @@ export async function getRepoFiles(repoPath: string): Promise<string[]> {
   }
 }
 
+/**
+ * Fetch recent repository history (last N commits with changed files) and parse
+ * into a list of entries and a file->lastModified map for MRU sorting.
+ */
+export async function getRepoHistoryData(repoPath: string, maxCommits: number = 50): Promise<{
+  entries: Array<{ hash: string; author: string; date: string; message: string; files: string[] }>
+  fileToLastModified: Record<string, string>
+}> {
+  try {
+    // Reuse backend command which returns a pretty log followed by file names per commit
+    const raw = await invoke<string>("get_repo_history", { repoPath });
+
+    const lines = raw.split(/\r?\n/);
+    const entries: Array<{ hash: string; author: string; date: string; message: string; files: string[] }> = [];
+
+    let current: { hash: string; author: string; date: string; message: string; files: string[] } | null = null;
+    for (const line of lines) {
+      if (!line.trim()) {
+        // blank line between commits
+        continue;
+      }
+      if (line.includes("|") && line.split("|").length >= 4 && /^[0-9a-f]{5,}/.test(line.split("|")[0])) {
+        // Start a new commit record
+        if (current) entries.push(current);
+        const [hash, author, date, message] = line.split("|");
+        current = { hash, author, date, message, files: [] };
+      } else if (current) {
+        // File path line (from --name-only); may be empty if no files (rare)
+        const filePath = line.trim();
+        if (filePath) current.files.push(filePath);
+      }
+      if (entries.length >= maxCommits) break;
+    }
+    if (current && entries.length < maxCommits) entries.push(current);
+
+    // Build last modified map: latest commit date per file
+    const fileToLastModified: Record<string, string> = {};
+    for (const entry of entries) {
+      for (const f of entry.files) {
+        if (!fileToLastModified[f]) {
+          fileToLastModified[f] = entry.date; // first time seen = most recent in log order
+        }
+      }
+    }
+
+    return { entries, fileToLastModified };
+  } catch (error) {
+    console.error("Error getting repository history data:", error);
+    return { entries: [], fileToLastModified: {} };
+  }
+}
+
+/**
+ * Sort provided files by most-recently modified according to git history.
+ */
+export async function sortFilesByRecency(repoPath: string, files: string[]): Promise<string[]> {
+  const { fileToLastModified } = await getRepoHistoryData(repoPath);
+  const withDates = files.map((f) => ({
+    file: f,
+    dateStr: fileToLastModified[f] || "1970-01-01",
+  }));
+  withDates.sort((a, b) => new Date(b.dateStr).getTime() - new Date(a.dateStr).getTime());
+  return withDates.map((e) => e.file);
+}
+
 export function getFileLanguage(fileName: string): string {
   const ext = fileName.split(".").pop()?.toLowerCase();
   const langMap: Record<string, string> = {
@@ -550,6 +615,34 @@ export async function resolveConflict(repoPath: string, filePath: string, resolu
     await invoke<void>("resolve_conflict", { repoPath, filePath, resolution });
   } catch (error) {
     console.error("Error resolving conflict:", error);
+    throw error;
+  }
+}
+
+// Remote operations
+export async function fetchRepo(repoPath: string): Promise<string> {
+  try {
+    return await invoke<string>('fetch_repo', { repoPath });
+  } catch (error) {
+    console.error('Error fetching repo:', error);
+    throw error;
+  }
+}
+
+export async function pullRepo(repoPath: string, rebase: boolean = false): Promise<string> {
+  try {
+    return await invoke<string>('pull_repo', { repoPath, rebase });
+  } catch (error) {
+    console.error('Error pulling repo:', error);
+    throw error;
+  }
+}
+
+export async function pushRepo(repoPath: string, forceWithLease: boolean = false): Promise<string> {
+  try {
+    return await invoke<string>('push_repo', { repoPath, forceWithLease: forceWithLease });
+  } catch (error) {
+    console.error('Error pushing repo:', error);
     throw error;
   }
 }

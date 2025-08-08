@@ -96,12 +96,12 @@ export default function AppHeader({
         {isFileView && (
           <div className="search-section">
             <div className="search-container">
-              <MagnifyingGlassIcon className="search-icon" size={16} />
+              <MagnifyingGlassIcon className="search-icon text-slate-500 dark:text-slate-400" size={16} />
               <input
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search commits..."
-                className="search-input"
+                className="search-input text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
             </div>
           </div>

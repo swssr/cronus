@@ -13,9 +13,8 @@
     "windows": [
       {
         "title": "cronus",
-        "width": 800,
-        "height": 600,
-        "alwaysOnTop": true,
+        "width": 900,
+        "height": 700,
         "decorations": false,
         "resizable": true,
         "transparent": true

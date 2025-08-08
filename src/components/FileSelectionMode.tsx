@@ -16,8 +16,10 @@ import {
   GitCommitIcon
 } from '@phosphor-icons/react';
 import { FileIcon } from './FileIcon';
-import { getFileTypeColor, getAuthorColor, adjustColorOpacity } from '../utils/colorUtils';
-import { getGitBranches, getGitCommits } from '../utils/index';
+import { getFileTypeColor, getAuthorColor, getReadableTextColor } from '../utils/colorUtils';
+import { getGitBranches, getGitCommits, getRepoHistoryData, getGitStatus } from '../utils/index';
+import FileTree from './FileTree';
+import SyncBar from './SyncBar';
 
 interface FileSelectionModeProps {
   availableFiles: string[];
@@ -56,9 +58,13 @@ export default function FileSelectionMode({
   const [focusedBranchResult, setFocusedBranchResult] = useState(0);
   const [branches, setBranches] = useState<string[]>([]);
   const [commits, setCommits] = useState<CommitInfo[]>([]);
+  const [fileHistory, setFileHistory] = useState<Record<string, string>>({});
+  const [viewMode, setViewMode] = useState<'tree' | 'list'>('tree');
+  const [sortMode, setSortMode] = useState<'recency' | 'name'>('recency');
   const [virtualBranchName, setVirtualBranchName] = useState('');
   const [selectedCommit, setSelectedCommit] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'files' | 'branches'>('files');
+  const [currentBranch, setCurrentBranch] = useState<string>('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const branchInputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +82,17 @@ export default function FileSelectionMode({
 
   const organizedFiles = organizeFiles(availableFiles);
 
-  // Enhanced file search with scoring
+  // Build a global recent list and optionally sort by recency within categories
+  const getRecentFiles = () => {
+    const entries = Object.entries(fileHistory)
+      .filter(([file]) => availableFiles.includes(file))
+      .sort((a, b) => new Date(b[1]).getTime() - new Date(a[1]).getTime())
+      .map(([file]) => file);
+    return entries.slice(0, 12);
+  };
+  const recentFiles = getRecentFiles();
+
+  // Enhanced file search with scoring (recency boosted)
   const searchFiles = (query: string): SearchResult[] => {
     if (!query.trim()) return [];
     
@@ -101,6 +117,15 @@ export default function FileSelectionMode({
           score += 10;
         }
         
+        // Recency boost
+        const last = fileHistory[file];
+        if (last) {
+          const days = Math.floor((Date.now() - new Date(last).getTime()) / (1000 * 60 * 60 * 24));
+          if (days <= 1) score += 25;
+          else if (days <= 7) score += 15;
+          else if (days <= 30) score += 8;
+        }
+
         if (score > 0) {
           results.push({ file, category, score });
         }
@@ -112,13 +137,15 @@ export default function FileSelectionMode({
 
   const fileSearchResults = searchFiles(fileSearchTerm);
 
-  // Load branches and commits when component mounts
+  // Load branches, commits, current branch and file history when component mounts
   useEffect(() => {
     const loadBranchesAndCommits = async () => {
       try {
-        const [branchesData, commitsData] = await Promise.all([
+        const [branchesData, commitsData, historyData, status] = await Promise.all([
           getGitBranches(directory),
-          getGitCommits(directory, 50)
+          getGitCommits(directory, 50),
+          getRepoHistoryData(directory, 200),
+          getGitStatus(directory),
         ]);
         
         setBranches(branchesData);
@@ -128,6 +155,8 @@ export default function FileSelectionMode({
           date: commit.date,
           message: commit.message
         })));
+        setFileHistory(historyData.fileToLastModified);
+        setCurrentBranch(status.current_branch);
       } catch (error) {
         console.error('Failed to load branches and commits:', error);
       }
@@ -193,11 +222,20 @@ export default function FileSelectionMode({
     );
   };
 
+  const branchQuery = branchSearchTerm.toLowerCase();
   const filteredCommits = commits.filter(commit => 
-    commit.hash.toLowerCase().includes(branchSearchTerm.toLowerCase()) ||
-    commit.author.toLowerCase().includes(branchSearchTerm.toLowerCase()) ||
-    commit.message.toLowerCase().includes(branchSearchTerm.toLowerCase())
+    commit.hash.toLowerCase().includes(branchQuery) ||
+    commit.author.toLowerCase().includes(branchQuery) ||
+    commit.message.toLowerCase().includes(branchQuery)
   );
+  const filteredBranches = branches
+    .filter(b => b.toLowerCase().includes(branchQuery))
+    .slice()
+    .sort((a, b) => {
+      if (a === currentBranch) return -1;
+      if (b === currentBranch) return 1;
+      return a.localeCompare(b);
+    });
 
   return (
     <motion.div 
@@ -267,13 +305,39 @@ export default function FileSelectionMode({
             >
               <div className="p-6">
                 <div className="mb-6">
-                  <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
-                    <TreeStructure size={20} className="text-blue-600 dark:text-blue-400" />
-                    Files
-                  </h2>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Select a file to view its commit history
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
+                      <TreeStructure size={20} className="text-blue-600 dark:text-blue-400" />
+                      Files
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 mr-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">Sort</span>
+                        <select
+                          className="text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-gray-100 rounded-md px-1.5 py-1"
+                          value={sortMode}
+                          onChange={(e) => setSortMode(e.target.value as any)}
+                        >
+                          <option value="recency">Recency</option>
+                          <option value="name">Name</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('tree')}
+                        className={`px-2 py-1 text-xs rounded-md border ${viewMode === 'tree' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-600'}`}
+                      >Tree</button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('list')}
+                        className={`px-2 py-1 text-xs rounded-md border ${viewMode === 'list' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-600'}`}
+                      >List</button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Select a file to view its commit history</p>
+                    <SyncBar repoPath={directory} />
+                  </div>
                 </div>
 
                 {/* Search */}
@@ -331,47 +395,87 @@ export default function FileSelectionMode({
                         )}
                       </motion.div>
                     ) : (
-                      <motion.div 
-                        key="file-categories"
-                        className="space-y-4"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        {Object.entries(organizedFiles).map(([category, files], categoryIndex) => (
-                          <motion.div 
-                            key={category} 
-                            className="file-category"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: categoryIndex * 0.05 }}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                                <Folder size={16} />
-                                {category}
-                              </h3>
-                              <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
-                                {files.length} files
-                              </span>
+                      viewMode === 'tree' ? (
+                        <motion.div 
+                          key="file-tree"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <FileTree repoPath={directory} files={availableFiles} onSelect={onFileSelect} />
+                        </motion.div>
+                      ) : (
+                        <motion.div 
+                          key="file-categories"
+                          className="space-y-4"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          {/* Strong MRU section */}
+                          {recentFiles.length > 0 && (
+                            <div className="mb-4">
+                          <h3 className="text-xs uppercase tracking-wide text-slate-700 dark:text-slate-300 mb-2">Recent</h3>
+                              <div className="grid grid-cols-1 gap-1.5">
+                                {recentFiles.map((file) => (
+                                  <FileCard
+                                    key={`recent-${file}`}
+                                    file={file}
+                                    idx={-1}
+                                    focusedResult={-1}
+                                    selectFile={onFileSelect}
+                                    searchTerm=""
+                                    highlightMatch={highlightMatch}
+                                    variant="recent"
+                                  />
+                                ))}
+                              </div>
                             </div>
-                            <div className="grid grid-cols-1 gap-1.5">
-                              {files.map((file) => (
-                                <FileCard
-                                  key={file}
-                                  file={file}
-                                  idx={-1}
-                                  focusedResult={-1}
-                                  selectFile={onFileSelect}
-                                  searchTerm=""
-                                  highlightMatch={highlightMatch}
-                                />
-                              ))}
-                            </div>
-                          </motion.div>
-                        ))}
-                      </motion.div>
+                          )}
+                          {Object.entries(organizedFiles).map(([category, files], categoryIndex) => (
+                            <motion.div 
+                              key={category} 
+                              className="file-category"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: categoryIndex * 0.05 }}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <h3 className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                                  <Folder size={16} />
+                                  {category}
+                                </h3>
+                                <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
+                                  {files.length} files
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 gap-1.5">
+                                {files
+                                  .slice()
+                                  .sort((a, b) => {
+                                    if (sortMode === 'name') return a.localeCompare(b);
+                                    const ad = fileHistory[a] ? new Date(fileHistory[a]).getTime() : 0;
+                                    const bd = fileHistory[b] ? new Date(fileHistory[b]).getTime() : 0;
+                                    return bd - ad;
+                                  })
+                                  .map((file) => (
+                                  <FileCard
+                                    key={file}
+                                    file={file}
+                                    idx={-1}
+                                    focusedResult={-1}
+                                    selectFile={onFileSelect}
+                                    searchTerm=""
+                                    highlightMatch={highlightMatch}
+                                  />
+                                ))}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </motion.div>
+                      )
                     )}
                   </AnimatePresence>
                 </div>
@@ -430,15 +534,31 @@ export default function FileSelectionMode({
                       Branches
                     </h3>
                     <div className="grid grid-cols-1 gap-2 mb-6">
-                      {branches.map((branch) => (
+                      {currentBranch && (!branchQuery || currentBranch.toLowerCase().includes(branchQuery)) && (
+                        <button
+                          key={`__current-${currentBranch}`}
+                          type="button"
+                          onClick={() => onBranchSelect(currentBranch)}
+                          className="branch-card p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800/30 transition-colors text-left group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <GitBranch size={16} className="text-emerald-600 dark:text-emerald-400" />
+                            <span className="font-medium text-slate-900 dark:text-slate-100">{currentBranch}</span>
+                            <span className="ml-2 text-[10px] uppercase tracking-wide text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-800 px-1.5 py-0.5 rounded">
+                              Current
+                            </span>
+                          </div>
+                        </button>
+                      )}
+                      {filteredBranches.map((branch) => (
                         <button
                           key={branch}
                           type="button"
                           onClick={() => onBranchSelect(branch)}
-                          className="branch-card p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors text-left group"
+                          className="branch-card p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left group"
                         >
                           <div className="flex items-center gap-2">
-                            <GitBranch size={16} className="text-green-600 dark:text-green-400" />
+                            <GitBranch size={16} className="text-slate-600 dark:text-slate-300" />
                             <span className="font-medium text-slate-900 dark:text-slate-100">{branch}</span>
                           </div>
                         </button>
@@ -453,7 +573,11 @@ export default function FileSelectionMode({
                       Recent Commits
                     </h3>
                     <div className="space-y-2">
-                      {filteredCommits.slice(0, 10).map((commit, idx) => (
+                      {filteredCommits
+                        .slice()
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .slice(0, 12)
+                        .map((commit, idx) => (
                         <CommitCard
                           key={commit.hash}
                           commit={commit}
@@ -524,6 +648,7 @@ function FileCard({
   selectFile,
   searchTerm,
   highlightMatch,
+  variant,
 }: {
   file: string;
   idx: number;
@@ -531,41 +656,44 @@ function FileCard({
   selectFile: (file: string) => void;
   searchTerm: string;
   highlightMatch: (text: string, query: string) => React.ReactNode;
+  variant?: 'recent' | 'default';
 }) {
   const fileExtension = file.split('.').pop()?.toLowerCase() || '';
   const fileName = file.split('/').pop() || '';
   const filePath = file.includes('/') ? file.substring(0, file.lastIndexOf('/')) : '';
   const fileColor = getFileTypeColor(file);
+  const textColor = getReadableTextColor(fileColor);
   
+  const isRecent = variant === 'recent';
   return (
     <button
       type="button"
-      className={`file-card p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left w-full ${
+      className={`file-card p-2.5 ${isRecent ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-800'} border ${isRecent ? 'border-slate-300 dark:border-slate-700' : 'border-slate-200 dark:border-slate-700'} rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left w-full ${
         idx === focusedResult ? "ring-2 ring-blue-500" : ""
       }`}
       onClick={() => selectFile(file)}
     >
       <div className="flex items-center gap-3">
         <div 
-          className="file-type-indicator w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold text-white"
-          style={{ backgroundColor: fileColor }}
+          className={`file-type-indicator w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold ${isRecent ? 'shadow-inner' : ''}`}
+          style={{ backgroundColor: fileColor, color: textColor }}
           title={`${fileExtension.toUpperCase()} file`}
         >
           {fileExtension.charAt(0).toUpperCase() || 'F'}
         </div>
         
         <div className="file-details flex-1 min-w-0">
-          <div className="file-name font-medium text-slate-900 dark:text-slate-100 truncate">
+          <div className={`file-name font-medium truncate ${isRecent ? 'text-slate-900 dark:text-slate-100' : 'text-slate-900 dark:text-slate-100'}`}>
             {highlightMatch(fileName, searchTerm)}
           </div>
           {filePath && (
-            <div className="file-path text-xs text-slate-500 dark:text-slate-400 truncate">
+            <div className={`file-path text-xs truncate ${isRecent ? 'text-slate-600 dark:text-slate-400' : 'text-slate-500 dark:text-slate-400'}`}>
               {filePath}/
             </div>
           )}
         </div>
         
-        <FileIcon fileName={file} size={16} className="text-slate-400" />
+        <FileIcon fileName={file} size={16} className={`${isRecent ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400 dark:text-slate-400'}`} />
       </div>
     </button>
   );
@@ -589,20 +717,21 @@ function CommitCard({
   isSelected?: boolean;
 }) {
   const authorColor = getAuthorColor(commit.author);
+  const authorText = getReadableTextColor(authorColor);
   const commitDate = new Date(commit.date);
   
   return (
     <button
       type="button"
-      className={`commit-card p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors text-left w-full ${
+      className={`commit-card p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left w-full ${
         idx === focusedResult ? "ring-2 ring-green-500" : ""
       } ${isSelected ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700" : ""}`}
       onClick={() => onSelect(commit.hash)}
     >
       <div className="flex items-start gap-3">
-        <div 
-          className="commit-hash font-mono text-xs px-2 py-1 rounded text-white"
-          style={{ backgroundColor: adjustColorOpacity(authorColor, 0.8) }}
+        <div
+          className="commit-hash font-mono text-xs px-2 py-1 rounded border"
+          style={{ backgroundColor: authorColor, color: authorText, borderColor: authorText + '22' }}
         >
           {commit.hash.substring(0, 7)}
         </div>
@@ -612,7 +741,7 @@ function CommitCard({
             {highlightMatch(commit.message, searchTerm)}
           </div>
           
-          <div className="commit-meta flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+          <div className="commit-meta flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
             <span className="flex items-center gap-1">
               <User size={12} />
               {highlightMatch(commit.author, searchTerm)}

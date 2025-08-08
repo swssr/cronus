@@ -43,7 +43,7 @@ export default function SmartCommitAssistant({
   const [selectedSuggestion, setSelectedSuggestion] = useState<CommitSuggestion | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [guidedMode, setGuidedMode] = useState(true);
-  const [showPreview, setShowPreview] = useState(false);
+  const [/* showPreview */] = useState(false);
 
   const generateAutoSuggestion = useCallback(async () => {
     try {
@@ -219,7 +219,7 @@ export default function SmartCommitAssistant({
                         <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-[48ch]">
                           {file.path}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(file.status)} bg-slate-100 dark:bg-slate-700/60`}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(file.status)} bg-slate-100 dark:bg-slate-800/60`}
                         >
                           {file.status}
                         </span>
@@ -262,7 +262,7 @@ export default function SmartCommitAssistant({
                         <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-[48ch]">
                           {filePath}
                         </span>
-                        <span className="text-xs px-2 py-0.5 rounded-full text-blue-600 dark:text-blue-400 bg-slate-100 dark:bg-slate-700/60">
+                        <span className="text-xs px-2 py-0.5 rounded-full text-blue-600 dark:text-blue-300 bg-slate-100 dark:bg-slate-800/60">
                           untracked
                         </span>
                       </div>
@@ -304,7 +304,7 @@ export default function SmartCommitAssistant({
                         <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-[48ch]">
                           {file.path}
                         </span>
-                        <span className="text-xs px-2 py-0.5 rounded-full text-emerald-600 dark:text-emerald-400 bg-slate-100 dark:bg-slate-700/60">
+                        <span className="text-xs px-2 py-0.5 rounded-full text-emerald-700 dark:text-emerald-300 bg-slate-100 dark:bg-slate-800/60">
                           staged
                         </span>
                       </div>

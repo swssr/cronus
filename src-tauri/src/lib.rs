@@ -1407,9 +1407,64 @@ pub fn run() {
             checkout_commit,
             open_external,
             write_repo_file,
-            full_branch_history
+            full_branch_history,
+            fetch_repo,
+            pull_repo,
+            push_repo
         ])
         .manage(AppState { launch_path })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[command]
+fn fetch_repo(repo_path: String) -> Result<String, String> {
+    let path = PathBuf::from(&repo_path);
+    if !path.is_dir() { return Err("Path is not a directory".to_string()); }
+    let output = Command::new("git")
+        .args(["fetch", "--all", "--prune"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).into_owned())
+    }
+}
+
+#[command]
+fn pull_repo(repo_path: String, rebase: Option<bool>) -> Result<String, String> {
+    let path = PathBuf::from(&repo_path);
+    if !path.is_dir() { return Err("Path is not a directory".to_string()); }
+    let mut args: Vec<&str> = vec!["pull"]; 
+    if rebase.unwrap_or(false) { args.push("--rebase"); }
+    let output = Command::new("git")
+        .args(&args)
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).into_owned())
+    }
+}
+
+#[command]
+fn push_repo(repo_path: String, force_with_lease: Option<bool>) -> Result<String, String> {
+    let path = PathBuf::from(&repo_path);
+    if !path.is_dir() { return Err("Path is not a directory".to_string()); }
+    let mut args: Vec<&str> = vec!["push"]; 
+    if force_with_lease.unwrap_or(false) { args.push("--force-with-lease"); }
+    let output = Command::new("git")
+        .args(&args)
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).into_owned())
+    }
 }
