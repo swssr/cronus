@@ -20,7 +20,9 @@ import {
   unstageAll,
   createCommit, 
   suggestCommitMessage, 
-  generateCommitSuggestions 
+  generateCommitSuggestions,
+  getFileDiff,
+  getStagedDiff,
 } from '../utils/index';
 import { FileIcon } from './FileIcon';
 
@@ -44,6 +46,9 @@ export default function SmartCommitAssistant({
   const [showHelp, setShowHelp] = useState(false);
   const [guidedMode, setGuidedMode] = useState(true);
   const [/* showPreview */] = useState(false);
+  const [activeDiffFile, setActiveDiffFile] = useState<string | null>(null);
+  const [workingDiff, setWorkingDiff] = useState<string>('');
+  const [stagedDiff, setStagedDiff] = useState<string>('');
 
   const generateAutoSuggestion = useCallback(async () => {
     try {
@@ -77,6 +82,19 @@ export default function SmartCommitAssistant({
       onStatusUpdate();
     } catch (error) {
       console.error('Failed to unstage file:', error);
+    }
+  };
+
+  const loadDiffs = async (filePath: string) => {
+    try {
+      const [wd, sd] = await Promise.all([
+        getFileDiff(repoPath, filePath),
+        getStagedDiff(repoPath, filePath),
+      ]);
+      setWorkingDiff(wd);
+      setStagedDiff(sd);
+    } catch (e) {
+      console.error('Failed to load diffs', e);
     }
   };
 
@@ -225,14 +243,24 @@ export default function SmartCommitAssistant({
                         </span>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleStageFile(file.path)}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Plus size={14} />
-                      Stage
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setActiveDiffFile(file.path); loadDiffs(file.path); }}
+                        className="border-slate-300 dark:border-slate-600"
+                      >
+                        View diff
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleStageFile(file.path)}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <Plus size={14} />
+                        Stage
+                      </Button>
+                    </div>
                   </motion.div>
                 ))}
               </div>
@@ -333,6 +361,24 @@ export default function SmartCommitAssistant({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
+            {activeDiffFile && (
+              <div className="mb-4 p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{activeDiffFile}</div>
+                  <Button size="sm" variant="ghost" onClick={() => setActiveDiffFile(null)}>Close</Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Working vs HEAD</div>
+                    <pre className="text-xs whitespace-pre-wrap p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md max-h-64 overflow-auto">{workingDiff || 'No changes'}</pre>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Staged vs HEAD</div>
+                    <pre className="text-xs whitespace-pre-wrap p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md max-h-64 overflow-auto">{stagedDiff || 'No staged changes'}</pre>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3 mb-4">
               <GitCommit size={20} className="text-green-600 dark:text-green-400" />
               <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">

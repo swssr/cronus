@@ -647,6 +647,15 @@ export async function pushRepo(repoPath: string, forceWithLease: boolean = false
   }
 }
 
+export async function applyIndexPatch(repoPath: string, patch: string, reverse: boolean = false): Promise<string> {
+  try {
+    return await invoke<string>('apply_index_patch', { repoPath, patch, reverse });
+  } catch (error) {
+    console.error('Error applying index patch:', error);
+    throw error;
+  }
+}
+
 
 
 // Enhanced commit message suggestion with conventional commits

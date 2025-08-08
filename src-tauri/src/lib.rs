@@ -1410,7 +1410,8 @@ pub fn run() {
             full_branch_history,
             fetch_repo,
             pull_repo,
-            push_repo
+            push_repo,
+            apply_index_patch
         ])
         .manage(AppState { launch_path })
         .run(tauri::generate_context!())
@@ -1462,6 +1463,43 @@ fn push_repo(repo_path: String, force_with_lease: Option<bool>) -> Result<String
         .current_dir(&path)
         .output()
         .map_err(|e| e.to_string())?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).into_owned())
+    }
+}
+
+#[command]
+fn apply_index_patch(repo_path: String, patch: String, reverse: Option<bool>) -> Result<String, String> {
+    use std::io::Write;
+    let path = PathBuf::from(&repo_path);
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // Write patch to a temporary file
+    let mut tmp = std::env::temp_dir();
+    tmp.push("cronus_hunk.patch");
+    if let Err(e) = fs::write(&tmp, patch.as_bytes()) {
+        return Err(e.to_string());
+    }
+
+    let mut args: Vec<String> = vec!["apply".into(), "--cached".into(), "--unidiff-zero".into()];
+    if reverse.unwrap_or(false) {
+        args.push("-R".into());
+    }
+    args.push(tmp.to_string_lossy().to_string());
+
+    let output = Command::new("git")
+        .args(args.iter().map(|s| s.as_str()))
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    // Best-effort cleanup
+    let _ = fs::remove_file(&tmp);
+
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     } else {
