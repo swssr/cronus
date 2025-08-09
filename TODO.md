@@ -1,6 +1,7 @@
 ## Cronus Roadmap / TODO
 
 ### High-impact next
+
 - [ ] Hunk/line staging UI (stage/unstage by hunk and line)
   - [x] Backend: apply_index_patch (index patch apply/reverse)
   - [x] Backend: return unified diffs per-file (working vs HEAD, staged vs HEAD) segmented into hunks (zero context)
@@ -15,7 +16,9 @@
 - [ ] Basic PR/MR creation from branch (open on provider) and linkouts
 
 ### Core operations
+
 - [ ] Init repository
+- [ ] Worktree - smart on branch in worktree
 - [ ] Clone repository (progress, auth)
 - [x] Open local repository
 - [x] Status view with file grouping
@@ -28,6 +31,7 @@
 - [ ] Diff: commit vs parent/any ref, inline and side-by-side toggle
 
 ### Branching and history
+
 - [x] Commit history list
 - [x] Graph view with basic lanes
 - [ ] Graph: filters (author, date, branch), search, zoom
@@ -43,6 +47,7 @@
 - [ ] Tags: create/annotate/delete, tag pushes
 
 ### Remotes and sync
+
 - [ ] Manage remotes (add/remove/rename, set upstream)
 - [x] Fetch (basic)
 - [x] Pull (merge or rebase toggle, basic)
@@ -53,35 +58,41 @@
 - [x] SyncBar UI (basic Fetch/Pull/Push)
 
 ### Collaboration integrations
+
 - [ ] Open file/commit/branch on remote (deep links)
 - [ ] Create PR/MR from current branch (basic form + open in browser)
 - [ ] Show PR/MR status and checks (linkouts acceptable initially)
 - [ ] Review helpers: copy patch, shareable links
 
 ### Workspace utilities
+
 - [ ] Stash: create/list/apply/pop/drop (patch mode optional)
 - [ ] Worktrees: create/switch/remove
 - [ ] Submodules: add/update/init/sync, status
 - [ ] Git LFS: track/untrack, lock/unlock, transfer progress
 
 ### File-level tooling
+
 - [ ] Blame/annotate with hotspots and jump-to-commit
 - [ ] Repo-wide search (ripgrep) with filters and quick open
 - [ ] .gitignore manager with suggestions
 - [x] Open in external editor/terminal (basic opener)
 
 ### Safety and recovery
+
 - [ ] Reflog viewer with quick restore
 - [ ] Auto-stash before rebase/pull (prompted)
 - [ ] Previews for destructive ops; confirm dialogs; undo last action where possible
 - [ ] Large file and secret detection warnings
 
 ### Configuration
+
 - [ ] Per-repo git config editor (name/email/default branch/pull.rebase/autocrlf)
 - [ ] Signing setup (GPG/SSH)
 - [ ] Diff/merge tool preferences
 
 ### UX polish
+
 - [x] Light/dark theming with improved contrast in lists
 - [ ] Apply WCAG contrast audit app-wide
 - [ ] Virtualized lists for large repos; background indexing
@@ -90,11 +101,13 @@
 - [x] Notifications with actionable toasts (basic)
 
 ### Packaging / ops
+
 - [ ] Cross-platform builds (macOS/Windows/Linux) with code signing
 - [ ] Robust error surfaces with actionable fixes (e.g., detached HEAD hints)
 - [ ] Optional telemetry/diagnostics with opt-in
 
 ### Current capabilities (for reference)
+
 - [x] Open repository; list files (MRU tree and search)
 - [x] File diffs (working vs HEAD, staged vs HEAD)
 - [x] Stage/unstage files; create commits; commit suggestions
