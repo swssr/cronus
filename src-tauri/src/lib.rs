@@ -150,6 +150,34 @@ fn get_git_history(file_path: String) -> Result<String, String> {
 }
 
 #[command]
+fn undo_last_commit(repo_path: String, keep_changes: Option<bool>) -> Result<String, String> {
+    let path = PathBuf::from(&repo_path);
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // If keep_changes is true, equivalent to `git reset --soft HEAD~1`
+    // else default to `git reset --mixed HEAD~1` which unstages but keeps working tree
+    let args = if keep_changes.unwrap_or(true) {
+        vec!["reset", "--soft", "HEAD~1"]
+    } else {
+        vec!["reset", "--mixed", "HEAD~1"]
+    };
+
+    let output = Command::new("git")
+        .args(&args)
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).into_owned())
+    }
+}
+
+#[command]
 fn get_launch_path(state: tauri::State<AppState>) -> Option<String> {
     state.launch_path.clone()
 }
@@ -218,7 +246,7 @@ fn get_git_branches(repo_path: String) -> Result<Vec<String>, String> {
 
 #[command]
 fn get_git_commits(repo_path: String, limit: Option<usize>) -> Result<String, String> {
-    let mut path = PathBuf::from(&repo_path);
+    let path = PathBuf::from(&repo_path);
     // const path = fs.dir(repo_path);
     // let / var 
 
@@ -1411,6 +1439,7 @@ pub fn run() {
             fetch_repo,
             pull_repo,
             push_repo,
+            undo_last_commit,
             apply_index_patch,
             get_unified_diff
         ])
@@ -1473,7 +1502,7 @@ fn push_repo(repo_path: String, force_with_lease: Option<bool>) -> Result<String
 
 #[command]
 fn apply_index_patch(repo_path: String, patch: String, reverse: Option<bool>) -> Result<String, String> {
-    use std::io::Write;
+    // Note: tmp patch is written via fs::write above; Write trait not required
     let path = PathBuf::from(&repo_path);
     if !path.is_dir() {
         return Err("Path is not a directory".to_string());

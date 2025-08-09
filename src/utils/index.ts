@@ -647,6 +647,15 @@ export async function pushRepo(repoPath: string, forceWithLease: boolean = false
   }
 }
 
+export async function undoLastCommit(repoPath: string, keepChanges: boolean = true): Promise<string> {
+  try {
+    return await invoke<string>('undo_last_commit', { repoPath, keepChanges });
+  } catch (error) {
+    console.error('Error undoing last commit:', error);
+    throw error;
+  }
+}
+
 export async function applyIndexPatch(repoPath: string, patch: string, reverse: boolean = false): Promise<string> {
   try {
     return await invoke<string>('apply_index_patch', { repoPath, patch, reverse });

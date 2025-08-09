@@ -13,7 +13,7 @@ import {
   ArrowRight,
   Info
 } from '@phosphor-icons/react';
-import { GitStatus, CommitSuggestion } from '../types';
+import type { GitStatus, CommitSuggestion, UnifiedDiff } from '../types';
 import { 
   stageFile, 
   unstageFile, 
@@ -21,9 +21,9 @@ import {
   createCommit, 
   suggestCommitMessage, 
   generateCommitSuggestions,
-  getFileDiff,
-  getStagedDiff,
+  getUnifiedDiff as fetchUnifiedDiff,
   applyIndexPatch,
+  undoLastCommit,
 } from '../utils/index';
 import { FileIcon } from './FileIcon';
 
@@ -46,16 +46,17 @@ export default function SmartCommitAssistant({
   const [selectedSuggestion, setSelectedSuggestion] = useState<CommitSuggestion | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [guidedMode, setGuidedMode] = useState(true);
-  const [/* showPreview */] = useState(false);
+  // Preview state placeholder (planned): not yet used
   const [activeDiffFile, setActiveDiffFile] = useState<string | null>(null);
-  const [/* workingDiff */, setWorkingDiff] = useState<string>('');
-  const [/* stagedDiff */, setStagedDiff] = useState<string>('');
   const [workingHeader, setWorkingHeader] = useState<string>('');
   const [stagedHeader, setStagedHeader] = useState<string>('');
-  const [workingHunks, setWorkingHunks] = useState<Array<{ header: string; lines: string[] }>>([]);
-  const [stagedHunks, setStagedHunks] = useState<Array<{ header: string; lines: string[] }>>([]);
+  type LocalHunk = { header: string; lines: string[]; oldStart: number; newStart: number };
+  const [workingHunks, setWorkingHunks] = useState<LocalHunk[]>([]);
+  const [stagedHunks, setStagedHunks] = useState<LocalHunk[]>([]);
   const [selectedWorking, setSelectedWorking] = useState<Set<number>>(new Set());
   const [selectedStaged, setSelectedStaged] = useState<Set<number>>(new Set());
+  const [selectedWorkingLines, setSelectedWorkingLines] = useState<Map<number, Set<number>>>(new Map());
+  const [selectedStagedLines, setSelectedStagedLines] = useState<Map<number, Set<number>>>(new Map());
 
   const generateAutoSuggestion = useCallback(async () => {
     try {
@@ -92,47 +93,38 @@ export default function SmartCommitAssistant({
     }
   };
 
+  const toLocalHunks = (diff: UnifiedDiff): LocalHunk[] => {
+    return (diff.hunks || []).map((hunk) => {
+      const header: string = hunk.header;
+      const lines: string[] = (hunk.lines || []).map((l) => l.text);
+      // Support both camelCase and snake_case from backend
+      const hunkAny = hunk as unknown as { oldStart?: number; old_start?: number; newStart?: number; new_start?: number };
+      const oldStart: number = (hunkAny.oldStart ?? hunkAny.old_start ?? 0) as number;
+      const newStart: number = (hunkAny.newStart ?? hunkAny.new_start ?? 0) as number;
+      return { header, lines, oldStart, newStart };
+    });
+  };
+
+  const computeHunkKey = (h: { header: string; lines: string[] }) => `${h.header}|${h.lines[0] ?? ''}|${h.lines.length}`;
+
   const loadDiffs = async (filePath: string) => {
     try {
-      const [wd, sd] = await Promise.all([
-        getFileDiff(repoPath, filePath),
-        getStagedDiff(repoPath, filePath),
+      const [working, staged] = await Promise.all([
+        fetchUnifiedDiff(repoPath, filePath, false),
+        fetchUnifiedDiff(repoPath, filePath, true),
       ]);
-      setWorkingDiff(wd);
-      setStagedDiff(sd);
-      const parse = (diff: string) => {
-        const lines = diff.split('\n');
-        let headerLines: string[] = [];
-        let hunks: Array<{ header: string; lines: string[] }> = [];
-        let i = 0;
-        // collect header until first hunk
-        while (i < lines.length && !lines[i].startsWith('@@')) {
-          headerLines.push(lines[i]);
-          i++;
-        }
-        let current: { header: string; lines: string[] } | null = null;
-        for (; i < lines.length; i++) {
-          const line = lines[i];
-          if (line.startsWith('@@')) {
-            if (current) hunks.push(current);
-            current = { header: line, lines: [] };
-          } else if (current) {
-            current.lines.push(line);
-          }
-        }
-        if (current) hunks.push(current);
-        // Trim empty hunks
-        hunks = hunks.filter(h => h.lines.length > 0);
-        return { header: headerLines.join('\n'), hunks };
-      };
-      const w = parse(wd);
-      const s = parse(sd);
-      setWorkingHeader(w.header);
-      setStagedHeader(s.header);
-      setWorkingHunks(w.hunks);
-      setStagedHunks(s.hunks);
+
+      const workingH = toLocalHunks(working);
+      const stagedH = toLocalHunks(staged);
+
+      setWorkingHeader(working.header || '');
+      setStagedHeader(staged.header || '');
+      setWorkingHunks(workingH);
+      setStagedHunks(stagedH);
       setSelectedWorking(new Set());
       setSelectedStaged(new Set());
+      setSelectedWorkingLines(new Map());
+      setSelectedStagedLines(new Map());
     } catch (e) {
       console.error('Failed to load diffs', e);
     }
@@ -151,9 +143,72 @@ export default function SmartCommitAssistant({
     return parts.filter(Boolean).join('\n') + '\n';
   };
 
+  const buildPatchFromSelections = (
+    header: string,
+    hunks: LocalHunk[],
+    lineSelections: Map<number, Set<number>>
+  ) => {
+    const parts: string[] = [];
+    const selectedHunkIndices = Array.from(lineSelections.keys()).filter((idx) => (lineSelections.get(idx)?.size || 0) > 0);
+    if (selectedHunkIndices.length === 0) return '';
+    parts.push(header.trim());
+
+    for (const hIdx of selectedHunkIndices) {
+      const h = hunks[hIdx];
+      const selected = Array.from(lineSelections.get(hIdx) || []).sort((a, b) => a - b);
+      if (selected.length === 0) continue;
+      // Partition into contiguous runs
+      let runStart = selected[0];
+      let prev = selected[0];
+
+      const flushRun = (start: number, end: number) => {
+        // Compute base positions up to start
+        let oldCur = h.oldStart;
+        let newCur = h.newStart;
+        for (let i = 0; i < start; i++) {
+          const ch = h.lines[i][0];
+          if (ch === '-') oldCur++;
+          else if (ch === '+') newCur++;
+        }
+        // Count adds/dels in run
+        let oldCount = 0; let newCount = 0;
+        for (let i = start; i <= end; i++) {
+          const ch = h.lines[i][0];
+          if (ch === '-') oldCount++;
+          else if (ch === '+') newCount++;
+        }
+        if (oldCount === 0 && newCount === 0) return;
+        parts.push(`@@ -${oldCur},${oldCount} +${newCur},${newCount} @@`);
+        for (let i = start; i <= end; i++) {
+          parts.push(h.lines[i]);
+        }
+      };
+
+      for (let i = 1; i < selected.length; i++) {
+        const cur = selected[i];
+        if (cur === prev + 1) {
+          prev = cur;
+        } else {
+          flushRun(runStart, prev);
+          runStart = cur;
+          prev = cur;
+        }
+      }
+      flushRun(runStart, prev);
+    }
+    return parts.join('\n') + '\n';
+  };
+
   const stageSelectedHunks = async () => {
     if (!activeDiffFile) return;
-    const patch = buildPatch(workingHeader, workingHunks, selectedWorking);
+    const hasLineSelections = Array.from(selectedWorkingLines.values()).some((s) => s.size > 0);
+    const patch = hasLineSelections
+      ? buildPatchFromSelections(workingHeader, workingHunks, selectedWorkingLines)
+      : buildPatch(
+          workingHeader,
+          workingHunks.map(h => ({ header: h.header, lines: h.lines })),
+          selectedWorking
+        );
     if (!patch) return;
     try {
       await applyIndexPatch(repoPath, patch, false);
@@ -166,7 +221,14 @@ export default function SmartCommitAssistant({
 
   const unstageSelectedHunks = async () => {
     if (!activeDiffFile) return;
-    const patch = buildPatch(stagedHeader, stagedHunks, selectedStaged);
+    const hasLineSelections = Array.from(selectedStagedLines.values()).some((s) => s.size > 0);
+    const patch = hasLineSelections
+      ? buildPatchFromSelections(stagedHeader, stagedHunks, selectedStagedLines)
+      : buildPatch(
+          stagedHeader,
+          stagedHunks.map(h => ({ header: h.header, lines: h.lines })),
+          selectedStaged
+        );
     if (!patch) return;
     try {
       await applyIndexPatch(repoPath, patch, true);
@@ -455,16 +517,47 @@ export default function SmartCommitAssistant({
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 whitespace-pre-wrap">{workingHeader}</div>
                     <div className="space-y-2 max-h-64 overflow-auto">
                       {workingHunks.map((h, idx) => (
-                        <div key={`wh-${idx}`} className="border border-slate-200 dark:border-slate-700 rounded-md">
+                        <div key={`wh-${computeHunkKey(h)}`}
+                          className="border border-slate-200 dark:border-slate-700 rounded-md"
+                        >
                           <label className="flex items-center gap-2 px-2 py-1 bg-slate-100 dark:bg-slate-900 text-[11px]">
                             <input type="checkbox" checked={selectedWorking.has(idx)} onChange={(e) => {
                               const next = new Set(selectedWorking);
                               if (e.target.checked) next.add(idx); else next.delete(idx);
                               setSelectedWorking(next);
+                              const nextLines = new Map(selectedWorkingLines);
+                              if (e.target.checked) {
+                                nextLines.set(idx, new Set(h.lines.map((_, i) => i)));
+                              } else {
+                                nextLines.delete(idx);
+                              }
+                              setSelectedWorkingLines(nextLines);
                             }} />
                             <span className="font-mono">{h.header}</span>
                           </label>
-                          <pre className="text-xs whitespace-pre-wrap p-2">{h.lines.join('\n')}</pre>
+                          <div className="text-xs whitespace-pre p-2 space-y-0.5">
+                            {h.lines.map((line, li) => {
+                              const isSelected = selectedWorkingLines.get(idx)?.has(li) ?? false;
+                              const sign = line[0];
+                              const color = sign === '+' ? 'text-emerald-600' : sign === '-' ? 'text-rose-600' : 'text-slate-500';
+                              return (
+                                <label key={`wh-line-${computeHunkKey(h)}-${line}-${li}`} className={`flex items-center gap-2 ${color}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      const next = new Map(selectedWorkingLines);
+                                      const set = new Set(next.get(idx) || []);
+                                      if (e.target.checked) set.add(li); else set.delete(li);
+                                      if (set.size > 0) next.set(idx, set); else next.delete(idx);
+                                      setSelectedWorkingLines(next);
+                                    }}
+                                  />
+                                  <span className="font-mono">{line}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
                         </div>
                       ))}
                       {!workingHunks.length && <div className="text-xs text-slate-500">No changes</div>}
@@ -478,16 +571,47 @@ export default function SmartCommitAssistant({
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 whitespace-pre-wrap">{stagedHeader}</div>
                     <div className="space-y-2 max-h-64 overflow-auto">
                       {stagedHunks.map((h, idx) => (
-                        <div key={`sh-${idx}`} className="border border-slate-200 dark:border-slate-700 rounded-md">
+                        <div key={`sh-${computeHunkKey(h)}`}
+                          className="border border-slate-200 dark:border-slate-700 rounded-md"
+                        >
                           <label className="flex items-center gap-2 px-2 py-1 bg-slate-100 dark:bg-slate-900 text-[11px]">
                             <input type="checkbox" checked={selectedStaged.has(idx)} onChange={(e) => {
                               const next = new Set(selectedStaged);
                               if (e.target.checked) next.add(idx); else next.delete(idx);
                               setSelectedStaged(next);
+                              const nextLines = new Map(selectedStagedLines);
+                              if (e.target.checked) {
+                                nextLines.set(idx, new Set(h.lines.map((_, i) => i)));
+                              } else {
+                                nextLines.delete(idx);
+                              }
+                              setSelectedStagedLines(nextLines);
                             }} />
                             <span className="font-mono">{h.header}</span>
                           </label>
-                          <pre className="text-xs whitespace-pre-wrap p-2">{h.lines.join('\n')}</pre>
+                          <div className="text-xs whitespace-pre p-2 space-y-0.5">
+                            {h.lines.map((line, li) => {
+                              const isSelected = selectedStagedLines.get(idx)?.has(li) ?? false;
+                              const sign = line[0];
+                              const color = sign === '+' ? 'text-emerald-600' : sign === '-' ? 'text-rose-600' : 'text-slate-500';
+                              return (
+                                <label key={`sh-line-${computeHunkKey(h)}-${line}-${li}`} className={`flex items-center gap-2 ${color}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      const next = new Map(selectedStagedLines);
+                                      const set = new Set(next.get(idx) || []);
+                                      if (e.target.checked) set.add(li); else set.delete(li);
+                                      if (set.size > 0) next.set(idx, set); else next.delete(idx);
+                                      setSelectedStagedLines(next);
+                                    }}
+                                  />
+                                  <span className="font-mono">{line}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
                         </div>
                       ))}
                       {!stagedHunks.length && <div className="text-xs text-slate-500">No staged changes</div>}
@@ -603,6 +727,20 @@ export default function SmartCommitAssistant({
                 className="border-slate-300 dark:border-slate-600"
               >
                 Unstage all
+              </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await undoLastCommit(repoPath, true);
+                    await onStatusUpdate();
+                  } catch (e) {
+                    console.error('Undo last commit failed', e);
+                  }
+                }}
+                className="border-slate-300 dark:border-slate-600"
+              >
+                Undo last commit
               </Button>
             </div>
           </motion.div>
