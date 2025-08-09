@@ -23,6 +23,7 @@ import {
   generateCommitSuggestions,
   getFileDiff,
   getStagedDiff,
+  applyIndexPatch,
 } from '../utils/index';
 import { FileIcon } from './FileIcon';
 
@@ -47,8 +48,14 @@ export default function SmartCommitAssistant({
   const [guidedMode, setGuidedMode] = useState(true);
   const [/* showPreview */] = useState(false);
   const [activeDiffFile, setActiveDiffFile] = useState<string | null>(null);
-  const [workingDiff, setWorkingDiff] = useState<string>('');
-  const [stagedDiff, setStagedDiff] = useState<string>('');
+  const [/* workingDiff */, setWorkingDiff] = useState<string>('');
+  const [/* stagedDiff */, setStagedDiff] = useState<string>('');
+  const [workingHeader, setWorkingHeader] = useState<string>('');
+  const [stagedHeader, setStagedHeader] = useState<string>('');
+  const [workingHunks, setWorkingHunks] = useState<Array<{ header: string; lines: string[] }>>([]);
+  const [stagedHunks, setStagedHunks] = useState<Array<{ header: string; lines: string[] }>>([]);
+  const [selectedWorking, setSelectedWorking] = useState<Set<number>>(new Set());
+  const [selectedStaged, setSelectedStaged] = useState<Set<number>>(new Set());
 
   const generateAutoSuggestion = useCallback(async () => {
     try {
@@ -93,8 +100,80 @@ export default function SmartCommitAssistant({
       ]);
       setWorkingDiff(wd);
       setStagedDiff(sd);
+      const parse = (diff: string) => {
+        const lines = diff.split('\n');
+        let headerLines: string[] = [];
+        let hunks: Array<{ header: string; lines: string[] }> = [];
+        let i = 0;
+        // collect header until first hunk
+        while (i < lines.length && !lines[i].startsWith('@@')) {
+          headerLines.push(lines[i]);
+          i++;
+        }
+        let current: { header: string; lines: string[] } | null = null;
+        for (; i < lines.length; i++) {
+          const line = lines[i];
+          if (line.startsWith('@@')) {
+            if (current) hunks.push(current);
+            current = { header: line, lines: [] };
+          } else if (current) {
+            current.lines.push(line);
+          }
+        }
+        if (current) hunks.push(current);
+        // Trim empty hunks
+        hunks = hunks.filter(h => h.lines.length > 0);
+        return { header: headerLines.join('\n'), hunks };
+      };
+      const w = parse(wd);
+      const s = parse(sd);
+      setWorkingHeader(w.header);
+      setStagedHeader(s.header);
+      setWorkingHunks(w.hunks);
+      setStagedHunks(s.hunks);
+      setSelectedWorking(new Set());
+      setSelectedStaged(new Set());
     } catch (e) {
       console.error('Failed to load diffs', e);
+    }
+  };
+
+  const buildPatch = (header: string, hunks: Array<{ header: string; lines: string[] }>, selected: Set<number>) => {
+    const chosen = hunks.map((h, idx) => ({ idx, h })).filter(x => selected.has(x.idx));
+    if (chosen.length === 0) return '';
+    const parts: string[] = [];
+    // Ensure header contains diff --git and ---/+++; if not, we still pass through
+    parts.push(header.trim());
+    for (const { h } of chosen) {
+      parts.push(h.header);
+      parts.push(...h.lines);
+    }
+    return parts.filter(Boolean).join('\n') + '\n';
+  };
+
+  const stageSelectedHunks = async () => {
+    if (!activeDiffFile) return;
+    const patch = buildPatch(workingHeader, workingHunks, selectedWorking);
+    if (!patch) return;
+    try {
+      await applyIndexPatch(repoPath, patch, false);
+      await onStatusUpdate();
+      await loadDiffs(activeDiffFile);
+    } catch (e) {
+      console.error('Stage selected hunks failed', e);
+    }
+  };
+
+  const unstageSelectedHunks = async () => {
+    if (!activeDiffFile) return;
+    const patch = buildPatch(stagedHeader, stagedHunks, selectedStaged);
+    if (!patch) return;
+    try {
+      await applyIndexPatch(repoPath, patch, true);
+      await onStatusUpdate();
+      await loadDiffs(activeDiffFile);
+    } catch (e) {
+      console.error('Unstage selected hunks failed', e);
     }
   };
 
@@ -369,12 +448,50 @@ export default function SmartCommitAssistant({
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <div className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Working vs HEAD</div>
-                    <pre className="text-xs whitespace-pre-wrap p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md max-h-64 overflow-auto">{workingDiff || 'No changes'}</pre>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs font-medium text-slate-600 dark:text-slate-300">Working vs HEAD</div>
+                      <Button size="sm" variant="outline" onClick={stageSelectedHunks} className="h-6 px-2 text-xs">Stage selected</Button>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 whitespace-pre-wrap">{workingHeader}</div>
+                    <div className="space-y-2 max-h-64 overflow-auto">
+                      {workingHunks.map((h, idx) => (
+                        <div key={`wh-${idx}`} className="border border-slate-200 dark:border-slate-700 rounded-md">
+                          <label className="flex items-center gap-2 px-2 py-1 bg-slate-100 dark:bg-slate-900 text-[11px]">
+                            <input type="checkbox" checked={selectedWorking.has(idx)} onChange={(e) => {
+                              const next = new Set(selectedWorking);
+                              if (e.target.checked) next.add(idx); else next.delete(idx);
+                              setSelectedWorking(next);
+                            }} />
+                            <span className="font-mono">{h.header}</span>
+                          </label>
+                          <pre className="text-xs whitespace-pre-wrap p-2">{h.lines.join('\n')}</pre>
+                        </div>
+                      ))}
+                      {!workingHunks.length && <div className="text-xs text-slate-500">No changes</div>}
+                    </div>
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Staged vs HEAD</div>
-                    <pre className="text-xs whitespace-pre-wrap p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md max-h-64 overflow-auto">{stagedDiff || 'No staged changes'}</pre>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs font-medium text-slate-600 dark:text-slate-300">Staged vs HEAD</div>
+                      <Button size="sm" variant="outline" onClick={unstageSelectedHunks} className="h-6 px-2 text-xs">Unstage selected</Button>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 whitespace-pre-wrap">{stagedHeader}</div>
+                    <div className="space-y-2 max-h-64 overflow-auto">
+                      {stagedHunks.map((h, idx) => (
+                        <div key={`sh-${idx}`} className="border border-slate-200 dark:border-slate-700 rounded-md">
+                          <label className="flex items-center gap-2 px-2 py-1 bg-slate-100 dark:bg-slate-900 text-[11px]">
+                            <input type="checkbox" checked={selectedStaged.has(idx)} onChange={(e) => {
+                              const next = new Set(selectedStaged);
+                              if (e.target.checked) next.add(idx); else next.delete(idx);
+                              setSelectedStaged(next);
+                            }} />
+                            <span className="font-mono">{h.header}</span>
+                          </label>
+                          <pre className="text-xs whitespace-pre-wrap p-2">{h.lines.join('\n')}</pre>
+                        </div>
+                      ))}
+                      {!stagedHunks.length && <div className="text-xs text-slate-500">No staged changes</div>}
+                    </div>
                   </div>
                 </div>
               </div>
