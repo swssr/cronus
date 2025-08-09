@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Commit, RecentRepository, GitStatus, CommitSuggestion, GitGraph, RepositoryAnalytics, ConflictResolution } from "../types";
+import { Commit, RecentRepository, GitStatus, CommitSuggestion, GitGraph, RepositoryAnalytics, ConflictResolution, UnifiedDiff } from "../types";
 
 const RECENT_REPOS_KEY = "cronus_recent_repositories";
 const MAX_RECENT_REPOS = 10;
@@ -652,6 +652,15 @@ export async function applyIndexPatch(repoPath: string, patch: string, reverse: 
     return await invoke<string>('apply_index_patch', { repoPath, patch, reverse });
   } catch (error) {
     console.error('Error applying index patch:', error);
+    throw error;
+  }
+}
+
+export async function getUnifiedDiff(repoPath: string, filePath: string, staged: boolean): Promise<UnifiedDiff> {
+  try {
+    return await invoke<UnifiedDiff>('get_unified_diff', { repoPath, filePath, staged });
+  } catch (error) {
+    console.error('Error getting unified diff:', error);
     throw error;
   }
 }

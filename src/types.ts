@@ -74,6 +74,29 @@ export interface DiffResult {
   unchanged: string[];
 }
 
+export type DiffLineType = 'add' | 'del' | 'ctx';
+
+export interface UnifiedDiffLine {
+  type: DiffLineType; // add(+), del(-), ctx( )
+  text: string;
+}
+
+export interface UnifiedDiffHunk {
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  header: string; // @@ -a,b +c,d @@ header
+  lines: UnifiedDiffLine[];
+}
+
+export interface UnifiedDiff {
+  filePath: string;
+  isBinary: boolean;
+  header: string; // diff --git / --- / +++
+  hunks: UnifiedDiffHunk[];
+}
+
 export interface RecentRepository {
   path: string;
   name: string;

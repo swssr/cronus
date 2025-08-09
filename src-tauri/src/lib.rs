@@ -1411,7 +1411,8 @@ pub fn run() {
             fetch_repo,
             pull_repo,
             push_repo,
-            apply_index_patch
+            apply_index_patch,
+            get_unified_diff
         ])
         .manage(AppState { launch_path })
         .run(tauri::generate_context!())
@@ -1505,4 +1506,73 @@ fn apply_index_patch(repo_path: String, patch: String, reverse: Option<bool>) ->
     } else {
         Err(String::from_utf8_lossy(&output.stderr).into_owned())
     }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct UnifiedDiffLine { r#type: String, text: String }
+
+#[derive(Clone, Serialize, Deserialize)]
+struct UnifiedDiffHunk { old_start: i32, old_lines: i32, new_start: i32, new_lines: i32, header: String, lines: Vec<UnifiedDiffLine> }
+
+#[derive(Clone, Serialize, Deserialize)]
+struct UnifiedDiff { file_path: String, is_binary: bool, header: String, hunks: Vec<UnifiedDiffHunk> }
+
+#[command]
+fn get_unified_diff(repo_path: String, file_path: String, staged: Option<bool>) -> Result<UnifiedDiff, String> {
+    let path = PathBuf::from(&repo_path);
+    if !path.is_dir() { return Err("Path is not a directory".to_string()); }
+
+    // Build git diff args
+    let mut args: Vec<String> = vec!["diff".into(), "-U0".into()]; // zero context to simplify line selection
+    if staged.unwrap_or(false) { args.push("--cached".into()); }
+    args.push("--".into());
+    args.push(file_path.clone());
+
+    let output = Command::new("git")
+        .args(args.iter().map(|s| s.as_str()))
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).into_owned());
+    }
+
+    let diff_str = String::from_utf8_lossy(&output.stdout);
+    let mut header_lines: Vec<String> = Vec::new();
+    let mut hunks: Vec<UnifiedDiffHunk> = Vec::new();
+    let mut cur_hunk: Option<UnifiedDiffHunk> = None;
+    let mut is_binary = false;
+
+    for line in diff_str.lines() {
+        if line.starts_with("Binary files") {
+            is_binary = true;
+        }
+        if line.starts_with("@@") {
+            if let Some(h) = cur_hunk.take() { hunks.push(h); }
+            // Parse header: @@ -a,b +c,d @@ optional
+            let header = line.to_string();
+            let nums: Vec<i32> = header
+                .split(' ')
+                .filter(|s| s.starts_with('-') || s.starts_with('+'))
+                .flat_map(|part| {
+                    let part = part.trim_matches('@');
+                    let nums: Vec<&str> = part[1..].split(',').collect();
+                    if nums.len() == 2 {
+                        vec![nums[0].parse().unwrap_or(0), nums[1].parse().unwrap_or(0)]
+                    } else { vec![] }
+                })
+                .collect();
+            let (old_start, old_lines, new_start, new_lines) = if nums.len() >= 4 { (nums[0], nums[1], nums[2], nums[3]) } else { (0,0,0,0) };
+            cur_hunk = Some(UnifiedDiffHunk { old_start, old_lines, new_start, new_lines, header, lines: Vec::new() });
+        } else if line.starts_with("diff --git") || line.starts_with("--- ") || line.starts_with("+++ ") {
+            header_lines.push(line.to_string());
+        } else if let Some(ref mut h) = cur_hunk {
+            let t = if line.starts_with('+') { "add" } else if line.starts_with('-') { "del" } else { "ctx" };
+            h.lines.push(UnifiedDiffLine { r#type: t.to_string(), text: line.to_string() });
+        }
+    }
+    if let Some(h) = cur_hunk { hunks.push(h); }
+
+    Ok(UnifiedDiff { file_path, is_binary, header: header_lines.join("\n"), hunks })
 }

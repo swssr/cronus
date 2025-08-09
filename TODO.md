@@ -3,7 +3,7 @@
 ### High-impact next
 - [ ] Hunk/line staging UI (stage/unstage by hunk and line)
   - [x] Backend: apply_index_patch (index patch apply/reverse)
-  - [ ] Backend: return unified diffs per-file (working vs HEAD, staged vs HEAD) segmented into hunks
+  - [x] Backend: return unified diffs per-file (working vs HEAD, staged vs HEAD) segmented into hunks (zero context)
   - [ ] UI: per-hunk and per-line selection with Stage/Unstage
   - [ ] State: recompute staged/unstaged diffs incrementally
   - [ ] Safety: preview patch, revert-on-failure
