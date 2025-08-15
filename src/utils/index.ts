@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Commit, RecentRepository, GitStatus, CommitSuggestion, GitGraph, RepositoryAnalytics, ConflictResolution, UnifiedDiff } from "../types";
+import { Commit, RecentRepository, GitStatus, CommitSuggestion, GitGraph, RepositoryAnalytics, ConflictResolution, UnifiedDiff, WorktreeInfo } from "../types";
 
 const RECENT_REPOS_KEY = "cronus_recent_repositories";
 const MAX_RECENT_REPOS = 10;
@@ -506,6 +506,15 @@ export async function getGitStatus(repoPath: string): Promise<GitStatus> {
   }
 }
 
+export async function getLastFetchTime(repoPath: string): Promise<string | null> {
+  try {
+    return await invoke<string | null>('get_last_fetch_time', { repoPath });
+  } catch (error) {
+    console.error('Error getting last fetch time:', error);
+    return null;
+  }
+}
+
 export async function stageFile(repoPath: string, filePath: string): Promise<void> {
   try {
     await invoke<void>("stage_file", { repoPath, filePath });
@@ -847,6 +856,92 @@ export async function writeWorkingFile(repoPath: string, relativePath: string, c
     await invoke<void>("write_repo_file", { repoPath, relativePath, contents });
   } catch (error) {
     console.error("Error writing working file:", error);
+    throw error;
+  }
+}
+
+export async function createWorktree(repoPath: string, branchName: string, worktreePath?: string): Promise<string> {
+  try {
+    const result = await invoke<string>("create_worktree", { 
+      repoPath, 
+      branchName, 
+      worktreePath 
+    });
+    return result;
+  } catch (error) {
+    console.error("Error creating worktree:", error);
+    throw error;
+  }
+}
+
+export async function listWorktrees(repoPath: string): Promise<WorktreeInfo[]> {
+  try {
+    const worktrees = await invoke<WorktreeInfo[]>("list_worktrees", { repoPath });
+    return worktrees;
+  } catch (error) {
+    console.error("Error listing worktrees:", error);
+    throw error;
+  }
+}
+
+export async function checkoutWorktreeCommit(worktreePath: string, commitHash: string): Promise<string> {
+  try {
+    const result = await invoke<string>("checkout_worktree_commit", { 
+      worktreePath, 
+      commitHash 
+    });
+    return result;
+  } catch (error) {
+    console.error("Error checking out commit in worktree:", error);
+    throw error;
+  }
+}
+
+export async function removeWorktree(repoPath: string, worktreePath: string): Promise<string> {
+  try {
+    const result = await invoke<string>("remove_worktree", { 
+      repoPath, 
+      worktreePath 
+    });
+    return result;
+  } catch (error) {
+    console.error("Error removing worktree:", error);
+    throw error;
+  }
+}
+
+export async function getWorktreeFileContent(
+  worktreePath: string, 
+  filePath: string, 
+  commitHash?: string
+): Promise<string> {
+  try {
+    const content = await invoke<string>("get_worktree_file_content", { 
+      worktreePath, 
+      filePath, 
+      commitHash 
+    });
+    return content;
+  } catch (error) {
+    console.error("Error getting worktree file content:", error);
+    throw error;
+  }
+}
+
+export async function getWorktreeCommitHistory(
+  worktreePath: string, 
+  filePath: string, 
+  limit?: number
+): Promise<string> {
+  try {
+    const history = await invoke<string>("get_worktree_commit_history", { 
+      worktreePath, 
+      filePath, 
+      limit 
+    });
+    return history;
+  } catch (error) {
+    console.error("Error getting worktree commit history:", error);
     throw error;
   }
 }

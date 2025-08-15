@@ -13,13 +13,16 @@ import {
   GitCommit,
   FileText,
   Folder,
-  GitCommitIcon
+  GitCommitIcon,
+  ArrowsLeftRight
 } from '@phosphor-icons/react';
 import { FileIcon } from './FileIcon';
 import { getFileTypeColor, getAuthorColor, getReadableTextColor } from '../utils/colorUtils';
-import { getGitBranches, getGitCommits, getRepoHistoryData, getGitStatus } from '../utils/index';
+import { getGitBranches, getGitCommits, getRepoHistoryData, getGitStatus, getLastFetchTime } from '../utils/index';
+import { GitStatus } from '../types';
 import FileTree from './FileTree';
 import SyncBar from './SyncBar';
+import BranchComparison from './BranchComparison';
 
 interface FileSelectionModeProps {
   availableFiles: string[];
@@ -65,6 +68,10 @@ export default function FileSelectionMode({
   const [selectedCommit, setSelectedCommit] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'files' | 'branches'>('files');
   const [currentBranch, setCurrentBranch] = useState<string>('');
+  const [lastFetchTime, setLastFetchTime] = useState<string | null>(null);
+  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
+  const [showBranchComparison, setShowBranchComparison] = useState(false);
+  const [selectedFileForComparison, setSelectedFileForComparison] = useState<string>('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const branchInputRef = useRef<HTMLInputElement>(null);
@@ -91,6 +98,11 @@ export default function FileSelectionMode({
     return entries.slice(0, 12);
   };
   const recentFiles = getRecentFiles();
+
+  const handleCompareFile = (filePath: string) => {
+    setSelectedFileForComparison(filePath);
+    setShowBranchComparison(true);
+  };
 
   // Enhanced file search with scoring (recency boosted)
   const searchFiles = (query: string): SearchResult[] => {
@@ -141,11 +153,12 @@ export default function FileSelectionMode({
   useEffect(() => {
     const loadBranchesAndCommits = async () => {
       try {
-        const [branchesData, commitsData, historyData, status] = await Promise.all([
+        const [branchesData, commitsData, historyData, status, fetchTime] = await Promise.all([
           getGitBranches(directory),
           getGitCommits(directory, 50),
           getRepoHistoryData(directory, 200),
           getGitStatus(directory),
+          getLastFetchTime(directory),
         ]);
         
         setBranches(branchesData);
@@ -157,6 +170,8 @@ export default function FileSelectionMode({
         })));
         setFileHistory(historyData.fileToLastModified);
         setCurrentBranch(status.current_branch);
+        setLastFetchTime(fetchTime);
+        setGitStatus(status);
       } catch (error) {
         console.error('Failed to load branches and commits:', error);
       }
@@ -164,6 +179,20 @@ export default function FileSelectionMode({
     
     loadBranchesAndCommits();
   }, [directory]);
+
+  const refreshStatus = async () => {
+    try {
+      const [status, fetchTime] = await Promise.all([
+        getGitStatus(directory),
+        getLastFetchTime(directory),
+      ]);
+      setCurrentBranch(status.current_branch);
+      setLastFetchTime(fetchTime);
+      setGitStatus(status);
+    } catch (error) {
+      console.error('Failed to refresh status:', error);
+    }
+  };
 
   const handleFileSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (fileSearchResults.length === 0) return;
@@ -336,7 +365,18 @@ export default function FileSelectionMode({
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-slate-600 dark:text-slate-400">Select a file to view its commit history</p>
-                    <SyncBar repoPath={directory} />
+                    <div className="flex items-center gap-4">
+                      <BranchStatus 
+                        currentBranch={currentBranch}
+                        gitStatus={gitStatus}
+                        lastFetchTime={lastFetchTime}
+                      />
+                      <SyncBar 
+                        repoPath={directory} 
+                        onStatusRefresh={refreshStatus} 
+                        hasUpstream={gitStatus?.has_upstream ?? false}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -385,6 +425,7 @@ export default function FileSelectionMode({
                             selectFile={onFileSelect}
                             searchTerm={fileSearchTerm}
                             highlightMatch={highlightMatch}
+                            onCompare={handleCompareFile}
                           />
                         ))}
                         {fileSearchResults.length === 0 && (
@@ -429,6 +470,7 @@ export default function FileSelectionMode({
                                     searchTerm=""
                                     highlightMatch={highlightMatch}
                                     variant="recent"
+                                    onCompare={handleCompareFile}
                                   />
                                 ))}
                               </div>
@@ -461,16 +503,17 @@ export default function FileSelectionMode({
                                     return bd - ad;
                                   })
                                   .map((file) => (
-                                  <FileCard
-                                    key={file}
-                                    file={file}
-                                    idx={-1}
-                                    focusedResult={-1}
-                                    selectFile={onFileSelect}
-                                    searchTerm=""
-                                    highlightMatch={highlightMatch}
-                                  />
-                                ))}
+                                    <FileCard
+                                      key={file}
+                                      file={file}
+                                      idx={-1}
+                                      focusedResult={-1}
+                                      selectFile={onFileSelect}
+                                      searchTerm=""
+                                      highlightMatch={highlightMatch}
+                                      onCompare={handleCompareFile}
+                                    />
+                                  ))}
                               </div>
                             </motion.div>
                           ))}
@@ -637,7 +680,75 @@ export default function FileSelectionMode({
           )}
         </AnimatePresence>
       </div>
+      
+      {/* Branch Comparison Modal */}
+      {showBranchComparison && (
+        <BranchComparison
+          repoPath={directory}
+          filePath={selectedFileForComparison}
+          onClose={() => setShowBranchComparison(false)}
+        />
+      )}
     </motion.div>
+  );
+}
+
+function BranchStatus({ 
+  currentBranch, 
+  gitStatus, 
+  lastFetchTime 
+}: { 
+  currentBranch: string; 
+  gitStatus: GitStatus | null; 
+  lastFetchTime: string | null; 
+}) {
+  if (!currentBranch || !gitStatus) {
+    return null;
+  }
+
+  const { ahead, behind, has_upstream, upstream_branch } = gitStatus;
+  
+  return (
+    <div className="flex items-center gap-3 text-sm">
+      {/* Current Branch */}
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg">
+        <GitBranch size={14} className="text-slate-600 dark:text-slate-300" />
+        <span className="font-medium text-slate-900 dark:text-slate-100">
+          {currentBranch}
+        </span>
+      </div>
+
+      {/* Upstream Status */}
+      {has_upstream && upstream_branch && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+          <span className="text-blue-700 dark:text-blue-300 text-xs">
+            {ahead > 0 && `↑${ahead}`}
+            {behind > 0 && `↓${behind}`}
+            {ahead === 0 && behind === 0 && '✓'}
+          </span>
+          <span className="text-blue-600 dark:text-blue-400 text-xs">
+            {upstream_branch.replace('origin/', '')}
+          </span>
+        </div>
+      )}
+
+      {/* No Upstream Warning */}
+      {!has_upstream && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
+          <span className="text-amber-700 dark:text-amber-300 text-xs">
+            ⚠️ No upstream
+          </span>
+        </div>
+      )}
+
+      {/* Last Fetch Time */}
+      {lastFetchTime && (
+        <div className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 dark:text-slate-400">
+          <Clock size={12} />
+          <span>Fetched {lastFetchTime}</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -649,6 +760,7 @@ function FileCard({
   searchTerm,
   highlightMatch,
   variant,
+  onCompare,
 }: {
   file: string;
   idx: number;
@@ -657,6 +769,7 @@ function FileCard({
   searchTerm: string;
   highlightMatch: (text: string, query: string) => React.ReactNode;
   variant?: 'recent' | 'default';
+  onCompare?: (file: string) => void;
 }) {
   const fileExtension = file.split('.').pop()?.toLowerCase() || '';
   const fileName = file.split('/').pop() || '';
@@ -665,37 +778,57 @@ function FileCard({
   const textColor = getReadableTextColor(fileColor);
   
   const isRecent = variant === 'recent';
+  
+  const handleCompareClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onCompare?.(file);
+  };
+  
   return (
-    <button
-      type="button"
-      className={`file-card p-2.5 ${isRecent ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-800'} border ${isRecent ? 'border-slate-300 dark:border-slate-700' : 'border-slate-200 dark:border-slate-700'} rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left w-full ${
-        idx === focusedResult ? "ring-2 ring-blue-500" : ""
-      }`}
-      onClick={() => selectFile(file)}
-    >
-      <div className="flex items-center gap-3">
-        <div 
-          className={`file-type-indicator w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold ${isRecent ? 'shadow-inner' : ''}`}
-          style={{ backgroundColor: fileColor, color: textColor }}
-          title={`${fileExtension.toUpperCase()} file`}
-        >
-          {fileExtension.charAt(0).toUpperCase() || 'F'}
-        </div>
-        
-        <div className="file-details flex-1 min-w-0">
-          <div className={`file-name font-medium truncate ${isRecent ? 'text-slate-900 dark:text-slate-100' : 'text-slate-900 dark:text-slate-100'}`}>
-            {highlightMatch(fileName, searchTerm)}
+    <div className="relative group">
+      <button
+        type="button"
+        className={`file-card p-2.5 ${isRecent ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-800'} border ${isRecent ? 'border-slate-300 dark:border-slate-700' : 'border-slate-200 dark:border-slate-700'} rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left w-full ${
+          idx === focusedResult ? "ring-2 ring-blue-500" : ""
+        }`}
+        onClick={() => selectFile(file)}
+      >
+        <div className="flex items-center gap-3">
+          <div 
+            className={`file-type-indicator w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold ${isRecent ? 'shadow-inner' : ''}`}
+            style={{ backgroundColor: fileColor, color: textColor }}
+            title={`${fileExtension.toUpperCase()} file`}
+          >
+            {fileExtension.charAt(0).toUpperCase() || 'F'}
           </div>
-          {filePath && (
-            <div className={`file-path text-xs truncate ${isRecent ? 'text-slate-600 dark:text-slate-400' : 'text-slate-500 dark:text-slate-400'}`}>
-              {filePath}/
+          
+          <div className="file-details flex-1 min-w-0">
+            <div className={`file-name font-medium truncate ${isRecent ? 'text-slate-900 dark:text-slate-100' : 'text-slate-900 dark:text-slate-100'}`}>
+              {highlightMatch(fileName, searchTerm)}
             </div>
-          )}
+            {filePath && (
+              <div className={`file-path text-xs truncate ${isRecent ? 'text-slate-600 dark:text-slate-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                {filePath}/
+              </div>
+            )}
+          </div>
+          
+          <FileIcon fileName={file} size={16} className={`${isRecent ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400 dark:text-slate-400'}`} />
         </div>
-        
-        <FileIcon fileName={file} size={16} className={`${isRecent ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400 dark:text-slate-400'}`} />
-      </div>
-    </button>
+      </button>
+      
+      {/* Compare Button - appears on hover */}
+      {onCompare && (
+        <button
+          type="button"
+          onClick={handleCompareClick}
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded-md shadow-lg"
+          title="Compare file between branches"
+        >
+          <ArrowsLeftRight size={14} />
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -36,6 +36,8 @@ export interface GitStatus {
   current_branch: string;
   ahead: number;
   behind: number;
+  upstream_branch?: string;
+  has_upstream: boolean;
 }
 
 export interface CommitSuggestion {
@@ -182,4 +184,30 @@ export interface Notification {
   };
   dismissible: boolean;
   autoDismiss?: number;
+}
+
+export interface WorktreeInfo {
+  path: string;
+  branch: string;
+  commit: string;
+  isDetached: boolean;
+  isCurrent: boolean;
+}
+
+export interface BranchComparisonState {
+  leftBranch: string;
+  rightBranch: string;
+  leftCommit: string;
+  rightCommit: string;
+  leftContent: string;
+  rightContent: string;
+  leftCommits: CommitInfo[];
+  rightCommits: CommitInfo[];
+}
+
+export interface CommitInfo {
+  hash: string;
+  author: string;
+  date: string;
+  message: string;
 }

@@ -18,7 +18,7 @@
 ### Core operations
 
 - [ ] Init repository
-- [ ] Worktree - smart on branch in worktree
+- [x] Worktree - smart on branch in worktree
 - [ ] Clone repository (progress, auth)
 - [x] Open local repository
 - [x] Status view with file grouping
@@ -28,7 +28,7 @@
 - [ ] Commit: amend, edit last message, co-authors
 - [ ] Commit signing (GPG/SSH)
 - [x] Diff views: working vs HEAD, staged vs HEAD
-- [ ] Diff: commit vs parent/any ref, inline and side-by-side toggle
+- [x] Diff: commit vs parent/any ref, inline and side-by-side toggle (branch comparison with worktrees)
 
 ### Branching and history
 

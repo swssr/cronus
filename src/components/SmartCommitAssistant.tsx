@@ -26,6 +26,7 @@ import {
   undoLastCommit,
 } from '../utils/index';
 import { FileIcon } from './FileIcon';
+import { toast } from 'sonner';
 
 interface SmartCommitAssistantProps {
   repoPath: string;
@@ -55,6 +56,14 @@ export default function SmartCommitAssistant({
   const [stagedHunks, setStagedHunks] = useState<LocalHunk[]>([]);
   const [selectedWorking, setSelectedWorking] = useState<Set<number>>(new Set());
   const [selectedStaged, setSelectedStaged] = useState<Set<number>>(new Set());
+  // Micro-interaction states
+  const [isLoadingDiffs, setIsLoadingDiffs] = useState(false);
+  const [busyStageFile, setBusyStageFile] = useState<string | null>(null);
+  const [busyUnstageFile, setBusyUnstageFile] = useState<string | null>(null);
+  const [isStagingSelected, setIsStagingSelected] = useState(false);
+  const [isUnstagingSelected, setIsUnstagingSelected] = useState(false);
+  const [isUnstagingAll, setIsUnstagingAll] = useState(false);
+  const [isUndoing, setIsUndoing] = useState(false);
   const [selectedWorkingLines, setSelectedWorkingLines] = useState<Map<number, Set<number>>>(new Map());
   const [selectedStagedLines, setSelectedStagedLines] = useState<Map<number, Set<number>>>(new Map());
 
@@ -77,19 +86,31 @@ export default function SmartCommitAssistant({
 
   const handleStageFile = async (filePath: string) => {
     try {
+      setBusyStageFile(filePath);
       await stageFile(repoPath, filePath);
       onStatusUpdate();
+      toast.success(`Staged ${filePath}`);
     } catch (error) {
       console.error('Failed to stage file:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error('Stage failed', { description: message });
+    } finally {
+      setBusyStageFile(null);
     }
   };
 
   const handleUnstageFile = async (filePath: string) => {
     try {
+      setBusyUnstageFile(filePath);
       await unstageFile(repoPath, filePath);
       onStatusUpdate();
+      toast.success(`Unstaged ${filePath}`);
     } catch (error) {
       console.error('Failed to unstage file:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error('Unstage failed', { description: message });
+    } finally {
+      setBusyUnstageFile(null);
     }
   };
 
@@ -109,6 +130,7 @@ export default function SmartCommitAssistant({
 
   const loadDiffs = async (filePath: string) => {
     try {
+      setIsLoadingDiffs(true);
       const [working, staged] = await Promise.all([
         fetchUnifiedDiff(repoPath, filePath, false),
         fetchUnifiedDiff(repoPath, filePath, true),
@@ -125,8 +147,13 @@ export default function SmartCommitAssistant({
       setSelectedStaged(new Set());
       setSelectedWorkingLines(new Map());
       setSelectedStagedLines(new Map());
+      toast(`Loaded diffs for ${filePath}`);
     } catch (e) {
       console.error('Failed to load diffs', e);
+      const message = e instanceof Error ? e.message : String(e);
+      toast.error('Failed to load diffs', { description: message });
+    } finally {
+      setIsLoadingDiffs(false);
     }
   };
 
@@ -211,11 +238,17 @@ export default function SmartCommitAssistant({
         );
     if (!patch) return;
     try {
+      setIsStagingSelected(true);
       await applyIndexPatch(repoPath, patch, false);
       await onStatusUpdate();
       await loadDiffs(activeDiffFile);
+      toast.success('Selected changes staged');
     } catch (e) {
       console.error('Stage selected hunks failed', e);
+      const message = e instanceof Error ? e.message : String(e);
+      toast.error('Stage failed', { description: message });
+    } finally {
+      setIsStagingSelected(false);
     }
   };
 
@@ -231,11 +264,17 @@ export default function SmartCommitAssistant({
         );
     if (!patch) return;
     try {
+      setIsUnstagingSelected(true);
       await applyIndexPatch(repoPath, patch, true);
       await onStatusUpdate();
       await loadDiffs(activeDiffFile);
+      toast.success('Selected changes unstaged');
     } catch (e) {
       console.error('Unstage selected hunks failed', e);
+      const message = e instanceof Error ? e.message : String(e);
+      toast.error('Unstage failed', { description: message });
+    } finally {
+      setIsUnstagingSelected(false);
     }
   };
 
@@ -252,6 +291,8 @@ export default function SmartCommitAssistant({
       onStatusUpdate();
     } catch (error) {
       console.error('Failed to create commit:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error('Commit failed', { description: message });
     } finally {
       setIsCreatingCommit(false);
     }
@@ -385,21 +426,31 @@ export default function SmartCommitAssistant({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
+              <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => { setActiveDiffFile(file.path); loadDiffs(file.path); }}
+                onClick={() => { setActiveDiffFile(file.path); loadDiffs(file.path); }}
                         className="border-slate-300 dark:border-slate-600"
                       >
-                        View diff
+                {isLoadingDiffs && activeDiffFile === file.path ? (
+                  <span className="flex items-center gap-2"><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> Loading…</span>
+                ) : (
+                  'View diff'
+                )}
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => handleStageFile(file.path)}
+                onClick={() => handleStageFile(file.path)}
                         className="bg-green-600 hover:bg-green-700 text-white"
                       >
-                        <Plus size={14} />
-                        Stage
+                {busyStageFile === file.path ? (
+                  <span className="flex items-center gap-2"><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Staging…</span>
+                ) : (
+                  <>
+                    <Plus size={14} />
+                    Stage
+                  </>
+                )}
                       </Button>
                     </div>
                   </motion.div>
@@ -484,8 +535,14 @@ export default function SmartCommitAssistant({
                       onClick={() => handleUnstageFile(file.path)}
                       className="border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/40"
                     >
-                      <Minus size={14} />
-                      Unstage
+                      {busyUnstageFile === file.path ? (
+                        <span className="flex items-center gap-2"><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> Unstaging…</span>
+                      ) : (
+                        <>
+                          <Minus size={14} />
+                          Unstage
+                        </>
+                      )}
                     </Button>
                   </motion.div>
                 ))}
@@ -512,7 +569,13 @@ export default function SmartCommitAssistant({
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <div className="text-xs font-medium text-slate-600 dark:text-slate-300">Working vs HEAD</div>
-                      <Button size="sm" variant="outline" onClick={stageSelectedHunks} className="h-6 px-2 text-xs">Stage selected</Button>
+                      <Button size="sm" variant="outline" onClick={stageSelectedHunks} className="h-6 px-2 text-xs">
+                        {isStagingSelected ? (
+                          <span className="flex items-center gap-2"><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> Staging…</span>
+                        ) : (
+                          'Stage selected'
+                        )}
+                      </Button>
                     </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 whitespace-pre-wrap">{workingHeader}</div>
                     <div className="space-y-2 max-h-64 overflow-auto">
@@ -566,7 +629,13 @@ export default function SmartCommitAssistant({
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <div className="text-xs font-medium text-slate-600 dark:text-slate-300">Staged vs HEAD</div>
-                      <Button size="sm" variant="outline" onClick={unstageSelectedHunks} className="h-6 px-2 text-xs">Unstage selected</Button>
+                      <Button size="sm" variant="outline" onClick={unstageSelectedHunks} className="h-6 px-2 text-xs">
+                        {isUnstagingSelected ? (
+                          <span className="flex items-center gap-2"><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> Unstaging…</span>
+                        ) : (
+                          'Unstage selected'
+                        )}
+                      </Button>
                     </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 whitespace-pre-wrap">{stagedHeader}</div>
                     <div className="space-y-2 max-h-64 overflow-auto">
@@ -723,24 +792,38 @@ export default function SmartCommitAssistant({
               </Button>
               <Button
                 variant="outline"
-                onClick={async () => { await unstageAll(repoPath); onStatusUpdate(); }}
+                onClick={async () => { try { setIsUnstagingAll(true); await unstageAll(repoPath); onStatusUpdate(); toast.success('Unstaged all changes'); } catch (e) { const msg = e instanceof Error ? e.message : String(e); toast.error('Unstage all failed', { description: msg }); } finally { setIsUnstagingAll(false); } }}
                 className="border-slate-300 dark:border-slate-600"
               >
-                Unstage all
+                {isUnstagingAll ? (
+                  <span className="flex items-center gap-2"><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> Unstaging…</span>
+                ) : (
+                  'Unstage all'
+                )}
               </Button>
               <Button
                 variant="outline"
                 onClick={async () => {
                   try {
+                    setIsUndoing(true);
                     await undoLastCommit(repoPath, true);
                     await onStatusUpdate();
+                    toast.success('Undid last commit');
                   } catch (e) {
                     console.error('Undo last commit failed', e);
+                    const msg = e instanceof Error ? e.message : String(e);
+                    toast.error('Undo last failed', { description: msg });
+                  } finally {
+                    setIsUndoing(false);
                   }
                 }}
                 className="border-slate-300 dark:border-slate-600"
               >
-                Undo last commit
+                {isUndoing ? (
+                  <span className="flex items-center gap-2"><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> Undoing…</span>
+                ) : (
+                  'Undo last commit'
+                )}
               </Button>
             </div>
           </motion.div>
