@@ -391,7 +391,7 @@ pub fn execute_rebase(repo_path: String, base_commit: String, plan: Vec<RebaseCo
 }
 
 #[command]
-pub fn analyze_file_relationships(repo_path: String, file_path: Option<String>) -> Result<FileGraph, String> {
+pub fn analyze_file_relationships(repo_path: String, _file_path: Option<String>) -> Result<FileGraph, String> {
     let path = PathBuf::from(&repo_path);
     
     if !path.exists() {

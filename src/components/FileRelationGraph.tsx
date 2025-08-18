@@ -1,18 +1,84 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { 
-  Network, 
-  MagnifyingGlass, 
+  ArrowClockwiseIcon, 
   ArrowsOutCardinal,
   Gear,
-  ArrowClockwise,
+  MagnifyingGlass, 
+  Network, 
   X
 } from '@phosphor-icons/react';
-import { analyzeFileRelationships } from '../utils/index';
-import { debugListSourceFiles } from '../utils/index';
-import { FileGraph, GraphFileNode } from '../types';
+import { AnimatePresence, motion } from 'framer-motion';
+import type React from 'react';
+import { useCallback, useEffect, useRef, useState, Suspense, lazy } from 'react';
+import type { FileGraph, GraphFileNode } from '../types';
+import { analyzeFileRelationships, debugListSourceFiles } from '../utils/index';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+
+// Performance optimization: Memoize expensive calculations
+const getNodeColor = (fileType: string): string => {
+  const baseColors: Record<string, string> = {
+    'ts': '#3178c6',
+    'tsx': '#3178c6',
+    'js': '#f7df1e',
+    'jsx': '#f7df1e',
+    'rs': '#ce422b',
+    'py': '#3776ab',
+    'go': '#00add8',
+    'java': '#007396',
+    'cpp': '#00599c',
+    'c': '#00599c',
+    'html': '#e34c26',
+    'css': '#1572b6',
+    'json': '#000000',
+    'md': '#000000',
+  };
+
+  return baseColors[fileType] || '#ff0000';
+};
+
+const useMemoizedGraphData = (graph: FileGraph | null) => {
+  return useCallback(() => {
+    if (!graph) return { nodes: [], edges: [] };
+    
+    // Memoize node processing
+    const nodes = graph.nodes.map((node, index) => {
+      const angle = (index / graph.nodes.length) * 2 * Math.PI;
+      const radius = 300;
+      
+      return {
+        ...node,
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+        vx: 0,
+        vy: 0,
+        radius: Math.max(8, Math.min(20, node.centrality * 2 + 8)),
+        color: getNodeColor(node.fileType),
+        isHighlighted: false,
+        isSelected: false,
+      };
+    });
+
+    // Memoize edge processing
+    const edges = graph.edges.map(edge => {
+      const sourceNode = nodes.find(n => n.path === edge.source);
+      const targetNode = nodes.find(n => n.path === edge.target);
+      
+      if (sourceNode && targetNode) {
+        return {
+          source: sourceNode,
+          target: targetNode,
+          relationType: edge.relationType,
+          strength: edge.strength,
+          metadata: edge.metadata,
+          isHighlighted: false,
+        };
+      }
+      return null;
+    }).filter(Boolean) as any[];
+
+    return { nodes, edges };
+  }, [graph]);
+};
 
 interface FileRelationGraphProps {
   repoPath: string;
@@ -44,6 +110,7 @@ interface GraphEdge {
 export default function FileRelationGraph({ repoPath, onClose }: FileRelationGraphProps) {
   const [graph, setGraph] = useState<FileGraph | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [zoom, setZoom] = useState(1);
   const [center, setCenter] = useState({ x: 0, y: 0 });
@@ -57,6 +124,9 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
   const animationRef = useRef<number>();
   const nodesRef = useRef<GraphNode[]>([]);
   const edgesRef = useRef<GraphEdge[]>([]);
+  
+  // Use memoized graph data for performance
+  const getGraphData = useMemoizedGraphData(graph);
 
   // Load file relationship data
   useEffect(() => {
@@ -66,6 +136,9 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
   const loadFileRelationships = async () => {
     try {
       setIsLoading(true);
+      setIsAnalyzing(true);
+      
+      // Progressive loading: First show loading, then analyzing
       const graphData = await analyzeFileRelationships(repoPath);
       setGraph(graphData);
       
@@ -75,44 +148,14 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
       console.error('Failed to load file relationships:', error);
     } finally {
       setIsLoading(false);
+      setIsAnalyzing(false);
     }
   };
 
   const initializeGraph = (graphData: FileGraph) => {
-    const nodes: GraphNode[] = graphData.nodes.map((node, index) => {
-      const angle = (index / graphData.nodes.length) * 2 * Math.PI;
-      const radius = 300;
-      
-      return {
-        ...node,
-        x: Math.cos(angle) * radius,
-        y: Math.sin(angle) * radius,
-        vx: 0,
-        vy: 0,
-        radius: Math.max(8, Math.min(20, node.centrality * 2 + 8)),
-        color: getNodeColor(node.fileType),
-        isHighlighted: false,
-        isSelected: false,
-      };
-    });
-
-    const edges: GraphEdge[] = graphData.edges.map(edge => {
-      const sourceNode = nodes.find(n => n.path === edge.source);
-      const targetNode = nodes.find(n => n.path === edge.target);
-      
-      if (sourceNode && targetNode) {
-        return {
-          source: sourceNode,
-          target: targetNode,
-          relationType: edge.relationType,
-          strength: edge.strength,
-          metadata: edge.metadata,
-          isHighlighted: false,
-        };
-      }
-      return null;
-    }).filter(Boolean) as GraphEdge[];
-
+    // Use memoized graph data for better performance
+    const { nodes, edges } = getGraphData();
+    
     nodesRef.current = nodes;
     edgesRef.current = edges;
     
@@ -120,28 +163,7 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
     startAnimation();
   };
 
-  const getNodeColor = (fileType: string): string => {
-    const baseColors: Record<string, string> = {
-      'ts': '#3178c6',
-      'tsx': '#3178c6',
-      'js': '#f7df1e',
-      'jsx': '#f7df1e',
-      'rs': '#ce422b',
-      'py': '#3776ab',
-      'go': '#00add8',
-      'java': '#007396',
-      'cpp': '#00599c',
-      'c': '#00599c',
-      'html': '#e34c26',
-      'css': '#1572b6',
-      'json': '#000000',
-      'md': '#000000',
-    };
 
-    const baseColor = baseColors[fileType] || '#6b7280';
-    
-    return baseColor;
-  };
 
   const startAnimation = useCallback(() => {
     const animate = () => {
@@ -212,7 +234,7 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
     });
   };
 
-  const renderGraph = () => {
+  const renderGraph = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -267,7 +289,7 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
     });
     
     ctx.restore();
-  };
+  }, [zoom, center.x, center.y, selectedNode]);
 
   const handleNodeClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -333,10 +355,29 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
     // Implement filtering logic
   };
 
+  const debounce = (func: Function, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return function executedFunction(...args: any[]) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  };
+
   const searchNodes = (term: string) => {
     setSearchTerm(term);
     // Implement search logic
   };
+
+  const debouncedSearch = useCallback(
+    debounce((term: string) => {
+      searchNodes(term);
+    }, 300),
+    []
+  );
 
   const debugFileDiscovery = async () => {
     try {
@@ -360,10 +401,51 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div className="bg-background border rounded-lg shadow-2xl p-8 flex flex-col items-center gap-4">
-          <ArrowClockwise className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-lg font-medium">Analyzing file relationships...</p>
+      <div className="fixed inset-0 bg-background backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-background border rounded-lg shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center gap-3">
+              <Network className="w-6 h-6 text-primary" />
+              <div>
+                <h2 className="text-xl font-semibold">File Relation Graph</h2>
+                <p className="text-sm text-muted-foreground">
+                  {isAnalyzing ? 'Analyzing dependencies...' : 'Loading graph...'}
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          {/* Progressive Loading Content */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-6">
+              <div className="relative">
+                <div className="w-20 h-20 border-4 border-primary/20 rounded-full"></div>
+                <div className="w-20 h-20 border-4 border-primary border-t-transparent rounded-full animate-spin absolute inset-0"></div>
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-xl font-medium">
+                  {isAnalyzing ? 'Analyzing File Relationships' : 'Loading Graph'}
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  {isAnalyzing 
+                    ? 'Scanning repository structure, analyzing imports/exports, and calculating relationships...'
+                    : 'Preparing graph visualization and loading components...'
+                  }
+                </p>
+              </div>
+              
+              {/* Progress indicators */}
+              <div className="flex items-center justify-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${!isAnalyzing ? 'bg-primary' : 'bg-muted'}`}></div>
+                <div className={`w-2 h-2 rounded-full ${isAnalyzing ? 'bg-primary' : 'bg-muted'}`}></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -374,7 +456,7 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-background backdrop-blur-sm z-50 flex items-center justify-center p-4"
     >
       <div className="bg-background border rounded-lg shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col">
         {/* Header */}
@@ -449,7 +531,7 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
               <Input
                 placeholder="Search files..."
                 value={searchTerm}
-                onChange={(e) => searchNodes(e.target.value)}
+                onChange={(e) => debouncedSearch(e.target.value)}
                 className="pl-10 w-64 text-sm"
               />
             </div>
@@ -459,7 +541,7 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
               size="sm"
               onClick={loadFileRelationships}
             >
-              <ArrowClockwise className="w-4 h-4" />
+              <ArrowClockwiseIcon className="w-4 h-4" />
             </Button>
             <Button
               variant="outline"
