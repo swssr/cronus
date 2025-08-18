@@ -14,8 +14,8 @@ import {
   FileText,
   Folder,
   GitCommitIcon,
-  ArrowsLeftRight,
   ArrowsLeftRightIcon,
+  Network,
 } from "@phosphor-icons/react";
 import { FileIcon } from "./FileIcon";
 import {
@@ -34,6 +34,7 @@ import { GitStatus } from "../types";
 import FileTree from "./FileTree";
 import SyncBar from "./SyncBar";
 import BranchComparison from "./BranchComparison";
+import FileRelationGraph from './FileRelationGraph';
 
 interface FileSelectionModeProps {
   availableFiles: string[];
@@ -88,9 +89,9 @@ export default function FileSelectionMode({
   const [lastFetchTime, setLastFetchTime] = useState<string | null>(null);
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [showBranchComparison, setShowBranchComparison] = useState(false);
-  const [selectedFileForComparison, setSelectedFileForComparison] =
-    useState<string>("");
-
+  const [selectedFileForComparison, setSelectedFileForComparison] = useState<string>('');
+  const [showFileRelationGraph, setShowFileRelationGraph] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const branchInputRef = useRef<HTMLInputElement>(null);
 
@@ -404,6 +405,15 @@ export default function FileSelectionMode({
                         List
                       </button>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFileRelationGraph(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Network className="w-4 h-4" />
+                      Graph View
+                    </Button>
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -777,6 +787,14 @@ export default function FileSelectionMode({
           repoPath={directory}
           filePath={selectedFileForComparison}
           onClose={() => setShowBranchComparison(false)}
+        />
+      )}
+      
+      {/* File Relation Graph Modal */}
+      {showFileRelationGraph && (
+        <FileRelationGraph
+          repoPath={directory}
+          onClose={() => setShowFileRelationGraph(false)}
         />
       )}
     </motion.div>

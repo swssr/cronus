@@ -17,6 +17,8 @@ use git_analytics::*;
 use git_worktrees::*;
 use app_commands::*;
 
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let args: Vec<String> = std::env::args().collect();
@@ -63,6 +65,10 @@ pub fn run() {
             resolve_conflict,
             get_rebase_plan,
             execute_rebase,
+            
+            // File relationship analysis commands
+            analyze_file_relationships,
+            get_file_dependencies,
             
             // Git worktree commands
             create_worktree,
