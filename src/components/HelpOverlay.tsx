@@ -14,11 +14,7 @@ import {
   Info
 } from '@phosphor-icons/react';
 import { Button } from './ui/button';
-
-interface HelpOverlayProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+import { useHelp } from '../contexts/HelpContext';
 
 interface HelpSection {
   id: string;
@@ -29,8 +25,11 @@ interface HelpSection {
   examples?: string[];
 }
 
-export default function HelpOverlay({ isOpen, onClose }: HelpOverlayProps) {
+export default function HelpOverlay() {
+  const { showHelp: isOpen, setShowHelp } = useHelp();
   const [activeSection, setActiveSection] = useState<string>('getting-started');
+  
+  const onClose = () => setShowHelp(false);
 
   const helpSections: HelpSection[] = [
     {

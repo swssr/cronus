@@ -7,19 +7,19 @@ import {
 } from "@phosphor-icons/react";
 import { useNavigate, useLocation } from '@tanstack/react-router'
 import { useTheme } from '../contexts/ThemeContext'
+import { useHelp } from '../contexts/HelpContext'
 import { ThemeToggle } from './ThemeToggle'
 
 interface HeaderProps {
-  onHelpClick?: () => void;
   left?: ReactElement;
   right?: ReactElement;
 }
 
 export default function AppHeader({
-  onHelpClick,
   left,
   right,
 }: HeaderProps) {
+  const { toggleHelp } = useHelp();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate()
   const location = useLocation()
@@ -122,7 +122,7 @@ export default function AppHeader({
         {/* Help Button */}
         <button
           type="button"
-          onClick={onHelpClick}
+                        onClick={toggleHelp}
           className="help-button"
           title="Help (?)"
         >
