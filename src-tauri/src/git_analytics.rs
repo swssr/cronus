@@ -401,8 +401,11 @@ pub fn analyze_file_relationships(repo_path: String, file_path: Option<String>) 
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
     
-    // Get all files in the repository
-    let files = crate::git::list_directory_files(repo_path.clone())?;
+    // Get all source files in the repository
+    let files = get_all_source_files(&repo_path)?;
+    
+    println!("Found {} source files for analysis", files.len());
+    println!("Files: {:?}", files);
     
     // Analyze each file for relationships
     for file in &files {
@@ -480,6 +483,150 @@ pub fn get_file_dependencies(file_path: String) -> Result<Vec<String>, String> {
     
     let (imports, _) = analyze_file_dependencies(&path)?;
     Ok(imports)
+}
+
+#[command]
+pub fn debug_list_source_files(repo_path: String) -> Result<Vec<String>, String> {
+    get_all_source_files(&repo_path)
+}
+
+fn get_all_source_files(repo_path: &str) -> Result<Vec<String>, String> {
+    let path = PathBuf::from(repo_path);
+    
+    if !path.exists() {
+        return Err("Repository path does not exist".to_string());
+    }
+    
+    let mut files = Vec::new();
+    let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let entry_path = entry.path();
+        
+        // Skip hidden directories but include hidden files (like .gitignore)
+        if entry_path.is_dir() {
+            if let Some(name) = entry_path.file_name() {
+                if let Some(name_str) = name.to_str() {
+                    if name_str.starts_with('.') && name_str != ".git" {
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        if entry_path.is_file() {
+            if let Ok(relative_path) = entry_path.strip_prefix(&path) {
+                if let Some(path_str) = relative_path.to_str() {
+                    // Only include source code files and important config files
+                    if is_source_file(path_str) {
+                        files.push(path_str.to_string());
+                    }
+                }
+            }
+        } else if entry_path.is_dir() {
+            let mut sub_files = get_all_source_files_recursive(&entry_path, &path)?;
+            files.append(&mut sub_files);
+        }
+    }
+    
+    files.sort();
+    Ok(files)
+}
+
+fn get_all_source_files_recursive(dir: &PathBuf, base_path: &PathBuf) -> Result<Vec<String>, String> {
+    let mut files = Vec::new();
+    let entries = fs::read_dir(dir).map_err(|e| e.to_string())?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let entry_path = entry.path();
+        
+        // Skip build and dependency directories
+        if entry_path.is_dir() {
+            if let Some(name) = entry_path.file_name() {
+                if let Some(name_str) = name.to_str() {
+                    if should_skip_directory(name_str) {
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        if entry_path.is_file() {
+            if let Ok(relative_path) = entry_path.strip_prefix(base_path) {
+                if let Some(path_str) = relative_path.to_str() {
+                    // Only include source code files and important config files
+                    if is_source_file(path_str) {
+                        files.push(path_str.to_string());
+                    }
+                }
+            }
+        } else if entry_path.is_dir() {
+            let mut sub_files = get_all_source_files_recursive(&entry_path, base_path)?;
+            files.append(&mut sub_files);
+        }
+    }
+    
+    Ok(files)
+}
+
+fn should_skip_directory(dir_name: &str) -> bool {
+    let skip_dirs = [
+        "node_modules", "target", "build", "dist", "out", ".next", ".nuxt",
+        "coverage", ".nyc_output", "vendor", "__pycache__", ".pytest_cache",
+        ".venv", "venv", "env", ".env", ".git", ".svn", ".hg", ".idea", ".vscode"
+    ];
+    
+    skip_dirs.contains(&dir_name)
+}
+
+fn is_source_file(file_path: &str) -> bool {
+    let source_extensions = [
+        // Source code files
+        "ts", "tsx", "js", "jsx", "rs", "py", "go", "java", "cpp", "c", "h", "hpp",
+        "cs", "php", "rb", "swift", "kt", "scala", "clj", "hs", "ml", "fs", "vb",
+        "html", "css", "scss", "sass", "less", "xml", "json", "yaml", "yml", "toml",
+        "ini", "cfg", "conf", "config", "md", "txt", "rst", "tex", "sql", "sh", "bat",
+        "ps1", "fish", "zsh", "bash", "dockerfile", "makefile", "cmake", "gradle",
+        "pom", "sbt", "cargo", "package", "requirements", "setup", "pyproject"
+    ];
+    
+    let file_lower = file_path.to_lowercase();
+    
+    // Check if it's a source file by extension
+    for ext in &source_extensions {
+        if file_lower.ends_with(&format!(".{}", ext)) {
+            return true;
+        }
+    }
+    
+    // Check for files without extensions that are commonly source files
+    let no_ext_files = [
+        "dockerfile", "makefile", "readme", "license", "changelog", "contributing",
+        "package", "requirements", "setup", "pyproject", "cargo", "gradle", "pom"
+    ];
+    
+    for no_ext in &no_ext_files {
+        if file_lower == *no_ext {
+            return true;
+        }
+    }
+    
+    // Include important config files
+    let config_files = [
+        ".gitignore", ".gitattributes", ".editorconfig", ".eslintrc", ".prettierrc",
+        ".babelrc", "tsconfig.json", "package.json", "cargo.toml", "pyproject.toml",
+        "requirements.txt", "setup.py", "pom.xml", "build.gradle", "cmake.txt"
+    ];
+    
+    for config in &config_files {
+        if file_lower.ends_with(config) {
+            return true;
+        }
+    }
+    
+    false
 }
 
 fn analyze_file_dependencies(file_path: &PathBuf) -> Result<(Vec<String>, Vec<String>), String> {

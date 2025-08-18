@@ -974,3 +974,15 @@ export async function getFileDependencies(filePath: string): Promise<string[]> {
   }
 }
 
+export async function debugListSourceFiles(repoPath: string): Promise<string[]> {
+  try {
+    const files = await invoke<string[]>("debug_list_source_files", { 
+      repoPath 
+    });
+    return files;
+  } catch (error) {
+    console.error("Error listing source files:", error);
+    throw error;
+  }
+}
+

@@ -69,6 +69,7 @@ pub fn run() {
             // File relationship analysis commands
             analyze_file_relationships,
             get_file_dependencies,
+            debug_list_source_files,
             
             // Git worktree commands
             create_worktree,

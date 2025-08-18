@@ -11,6 +11,7 @@ import {
   X
 } from '@phosphor-icons/react';
 import { analyzeFileRelationships } from '../utils/index';
+import { debugListSourceFiles } from '../utils/index';
 import { FileGraph, GraphFileNode } from '../types';
 
 interface FileRelationGraphProps {
@@ -337,6 +338,18 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
     // Implement search logic
   };
 
+  const debugFileDiscovery = async () => {
+    try {
+      console.log('Testing file discovery...');
+      const files = await debugListSourceFiles(repoPath);
+      console.log('Found files:', files);
+      alert(`Found ${files.length} source files:\n${files.slice(0, 20).join('\n')}${files.length > 20 ? '\n... and more' : ''}`);
+    } catch (error) {
+      console.error('Debug file discovery failed:', error);
+      alert('Debug failed: ' + error);
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (animationRef.current) {
@@ -447,6 +460,14 @@ export default function FileRelationGraph({ repoPath, onClose }: FileRelationGra
               onClick={loadFileRelationships}
             >
               <ArrowClockwise className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={debugFileDiscovery}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white"
+            >
+              Debug Files
             </Button>
           </div>
         </div>
