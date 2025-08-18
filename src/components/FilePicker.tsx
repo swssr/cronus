@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { open } from '@tauri-apps/plugin-dialog';
-import { useNavigate } from '@tanstack/react-router';
-import { 
-  FolderOpenIcon, 
+import { useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  FolderOpenIcon,
   SpinnerIcon,
-  WarningIcon
-} from '@phosphor-icons/react';
-import { addRecentRepository } from '../utils/index';
+  WarningIcon,
+} from "@phosphor-icons/react";
+import { addRecentRepository } from "../utils/index";
 
 interface FilePickerProps {
   isLoading?: boolean;
@@ -20,7 +20,7 @@ export function FilePicker({ isLoading = false }: FilePickerProps) {
   const handlePickDirectory = async () => {
     setIsPicking(true);
     setError(null);
-    
+
     try {
       const selected = await open({
         directory: true,
@@ -31,12 +31,15 @@ export function FilePicker({ isLoading = false }: FilePickerProps) {
       if (typeof selected === "string") {
         // Add to recent repositories
         addRecentRepository(selected, 0);
-        
+
         // Navigate to the repository files view
-        navigate({ to: `/repo/${encodeURIComponent(selected)}/files` });
+        navigate({
+          to: `/repo/${encodeURIComponent(selected)}/files`,
+          state: { foo: "bar" },
+        });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to open directory');
+      setError(err instanceof Error ? err.message : "Failed to open directory");
     } finally {
       setIsPicking(false);
     }
@@ -54,21 +57,28 @@ export function FilePicker({ isLoading = false }: FilePickerProps) {
           disabled={showLoader}
         >
           {showLoader ? (
-            <SpinnerIcon size={32} className="animate-spin text-slate-500" weight="light" />
+            <SpinnerIcon
+              size={32}
+              className="animate-spin text-slate-500"
+              weight="light"
+            />
           ) : (
-            <FolderOpenIcon size={32} className="text-slate-500" weight="light" />
+            <FolderOpenIcon
+              size={32}
+              className="text-slate-500"
+              weight="light"
+            />
           )}
         </button>
-        
+
         <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
-          {showLoader ? 'Loading Repository...' : 'Select a Repository'}
+          {showLoader ? "Loading Repository..." : "Select a Repository"}
         </h3>
-        
+
         <p className="text-slate-600 dark:text-slate-400 mb-4">
-          {showLoader 
-            ? 'Analyzing files and commit history...' 
-            : 'Choose a git repository to explore file history'
-          }
+          {showLoader
+            ? "Analyzing files and commit history..."
+            : "Choose a git repository to explore file history"}
         </p>
 
         {error && (
@@ -77,8 +87,8 @@ export function FilePicker({ isLoading = false }: FilePickerProps) {
             <span className="text-sm">{error}</span>
           </div>
         )}
-        
       </div>
     </div>
   );
-} 
+}
+
