@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Commit, RecentRepository, GitStatus, CommitSuggestion, GitGraph, RepositoryAnalytics, ConflictResolution, UnifiedDiff, WorktreeInfo } from "../types";
+import { Commit, RecentRepository, GitStatus, CommitSuggestion, GitGraph, RepositoryAnalytics, ConflictResolution, UnifiedDiff, WorktreeInfo, FileGraph } from "../types";
 
 const RECENT_REPOS_KEY = "cronus_recent_repositories";
 const MAX_RECENT_REPOS = 10;
@@ -942,6 +942,46 @@ export async function getWorktreeCommitHistory(
     return history;
   } catch (error) {
     console.error("Error getting worktree commit history:", error);
+    throw error;
+  }
+}
+
+export async function analyzeFileRelationships(
+  repoPath: string, 
+  filePath?: string
+): Promise<FileGraph> {
+  try {
+    const graph = await invoke<FileGraph>("analyze_file_relationships", { 
+      repoPath, 
+      filePath 
+    });
+    return graph;
+  } catch (error) {
+    console.error("Error analyzing file relationships:", error);
+    throw error;
+  }
+}
+
+export async function getFileDependencies(filePath: string): Promise<string[]> {
+  try {
+    const dependencies = await invoke<string[]>("get_file_dependencies", { 
+      filePath 
+    });
+    return dependencies;
+  } catch (error) {
+    console.error("Error getting file dependencies:", error);
+    throw error;
+  }
+}
+
+export async function debugListSourceFiles(repoPath: string): Promise<string[]> {
+  try {
+    const files = await invoke<string[]>("debug_list_source_files", { 
+      repoPath 
+    });
+    return files;
+  } catch (error) {
+    console.error("Error listing source files:", error);
     throw error;
   }
 }

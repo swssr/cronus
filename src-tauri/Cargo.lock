@@ -607,6 +607,7 @@ name = "cronus"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "regex",
  "serde",
  "serde_json",
  "tauri",

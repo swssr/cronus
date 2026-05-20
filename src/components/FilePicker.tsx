@@ -35,7 +35,6 @@ export function FilePicker({ isLoading = false }: FilePickerProps) {
         // Navigate to the repository files view
         navigate({
           to: `/repo/${encodeURIComponent(selected)}/files`,
-          state: { foo: "bar" },
         });
       }
     } catch (err) {

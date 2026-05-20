@@ -211,3 +211,36 @@ export interface CommitInfo {
   date: string;
   message: string;
 }
+
+export interface FileRelation {
+  source: string;
+  target: string;
+  relationType: string;
+  strength: number;
+  metadata?: any;
+}
+
+export interface GraphFileNode {
+  path: string;
+  name: string;
+  fileType: string;
+  size: number;
+  lastModified: string;
+  importCount: number;
+  exportCount: number;
+  centrality: number;
+}
+
+export interface FileGraph {
+  nodes: GraphFileNode[];
+  edges: FileRelation[];
+  metadata: FileGraphMetadata;
+}
+
+export interface FileGraphMetadata {
+  totalFiles: number;
+  totalRelations: number;
+  graphDensity: number;
+  averageCentrality: number;
+  analysisTimestamp: string;
+}

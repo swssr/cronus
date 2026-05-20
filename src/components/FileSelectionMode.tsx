@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, Suspense, lazy } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -8,14 +8,14 @@ import {
   X,
   Clock,
   Hash,
-  User,
   TreeStructure,
-  GitCommit,
   FileText,
+  User,
+  GitCommit,
   Folder,
   GitCommitIcon,
-  ArrowsLeftRight,
   ArrowsLeftRightIcon,
+  Network,
 } from "@phosphor-icons/react";
 import { FileIcon } from "./FileIcon";
 import {
@@ -33,7 +33,10 @@ import {
 import { GitStatus } from "../types";
 import FileTree from "./FileTree";
 import SyncBar from "./SyncBar";
-import BranchComparison from "./BranchComparison";
+import BranchComparison from './BranchComparison';
+
+// Lazy load the heavy FileRelationGraph component
+const FileRelationGraph = lazy(() => import('./FileRelationGraph'));
 
 interface FileSelectionModeProps {
   availableFiles: string[];
@@ -88,9 +91,9 @@ export default function FileSelectionMode({
   const [lastFetchTime, setLastFetchTime] = useState<string | null>(null);
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [showBranchComparison, setShowBranchComparison] = useState(false);
-  const [selectedFileForComparison, setSelectedFileForComparison] =
-    useState<string>("");
-
+  const [selectedFileForComparison, setSelectedFileForComparison] = useState<string>('');
+  const [showFileRelationGraph, setShowFileRelationGraph] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const branchInputRef = useRef<HTMLInputElement>(null);
 
@@ -404,6 +407,15 @@ export default function FileSelectionMode({
                         List
                       </button>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFileRelationGraph(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Network className="w-4 h-4" />
+                      Graph View
+                    </Button>
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -778,6 +790,47 @@ export default function FileSelectionMode({
           filePath={selectedFileForComparison}
           onClose={() => setShowBranchComparison(false)}
         />
+      )}
+      
+      {/* File Relation Graph Modal */}
+      {showFileRelationGraph && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-background border rounded-lg shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b">
+                <div className="flex items-center gap-3">
+                  <Network className="w-6 h-6 text-primary" />
+                  <div>
+                    <h2 className="text-xl font-semibold">File Relation Graph</h2>
+                    <p className="text-sm text-muted-foreground">Loading graph analysis...</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setShowFileRelationGraph(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {/* Loading Content */}
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <div>
+                    <h3 className="text-lg font-medium">Analyzing File Relationships</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Scanning repository structure and analyzing dependencies...
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        }>
+          <FileRelationGraph
+            repoPath={directory}
+            onClose={() => setShowFileRelationGraph(false)}
+          />
+        </Suspense>
       )}
     </motion.div>
   );
