@@ -1,13 +1,14 @@
-import { ReactElement, useRef } from "react";
 import {
   CaretLeftIcon,
   GitCommitIcon,
-  QuestionIcon,
   MagnifyingGlassIcon,
+  NetworkIcon,
+  QuestionIcon,
 } from "@phosphor-icons/react";
-import { useNavigate, useLocation } from '@tanstack/react-router'
-import { useTheme } from '../contexts/ThemeContext'
+import { useLocation, useNavigate } from '@tanstack/react-router'
+import { type ReactElement, useRef } from "react";
 import { useHelp } from '../contexts/HelpContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { ThemeToggle } from './ThemeToggle'
 
 interface HeaderProps {
@@ -111,12 +112,10 @@ export default function AppHeader({
       {/* Right Section - Controls */}
       <div className="header-right">
         {right || (
-          <>
             <ThemeToggle
               isDark={isDark}
               onToggle={() => setTheme(isDark ? "light" : "dark")}
             />
-          </>
         )}
 
         {/* Help Button */}
@@ -170,13 +169,9 @@ export default function AppHeader({
               onClick={() => handleModeChange("graph")}
               title="Git graph visualization"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M1 1v14h14V1H1zm1 1h12v12H2V2z"/>
-                <path d="M4 4h2v2H4V4zm3 0h2v2H7V4zm3 0h2v2h-2V4zM4 7h2v2H4V7zm3 0h2v2H7V7zm3 0h2v2h-2V7z"/>
-              </svg>
+              <NetworkIcon size={16} />
               Graph
             </button>
-            {/* Temporarily hide Analytics/Conflicts to reduce clutter in MVP */}
           </div>
         )}
       </div>
